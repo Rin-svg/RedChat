@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RedChat.Presentation</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RedChat.Core\RedChat.Core.csproj" />
+    <ProjectReference Include="..\RedChat.Infrastructure\RedChat.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

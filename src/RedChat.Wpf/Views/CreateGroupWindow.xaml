@@ -1,0 +1,45 @@
+<Window x:Class="RedChat.Wpf.Views.CreateGroupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Créer un groupe" Width="440" Height="560" MinWidth="380" MinHeight="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        Background="{StaticResource AppBackground}" Foreground="{StaticResource PrimaryText}">
+    <Grid Margin="18" Background="{StaticResource AppBackground}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="NOUVEAU GROUPE" Foreground="{StaticResource PrimaryText}" FontSize="18" FontWeight="Bold" Margin="0,0,0,14" />
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="Nom du groupe" Foreground="{StaticResource PrimaryText}" FontSize="12" FontWeight="SemiBold" />
+            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" Margin="0,5,0,0" Background="{StaticResource SurfaceRaised}" Foreground="{StaticResource PrimaryText}" BorderBrush="{StaticResource Accent}" CaretBrush="{StaticResource Accent}" />
+        </StackPanel>
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="Sélectionnez au moins un contact" Foreground="{StaticResource PrimaryText}" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Contacts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding DisplayName, TargetNullValue=Contact sans nom}" Tag="{Binding PeerId}"
+                                          Foreground="{StaticResource PrimaryText}" Background="{StaticResource SurfaceRaised}"
+                                          Checked="OnMemberSelectionChanged" Unchecked="OnMemberSelectionChanged"
+                                          Margin="4,7" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+            <TextBlock Text="{Binding Error}" Foreground="#FF7B91" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <DockPanel>
+                <Button Content="Annuler" DockPanel.Dock="Left" IsCancel="True" />
+                <Button Content="Créer le groupe" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}"
+                        Command="{Binding CreateCommand}" IsDefault="True" />
+            </DockPanel>
+        </StackPanel>
+    </Grid>
+</Window>

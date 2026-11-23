@@ -1,0 +1,46 @@
+<Project>
+  <!--
+    Directory.Build.props — à placer à la RACINE de la solution.
+    MSBuild l'applique automatiquement à TOUS les projets en dessous : un seul endroit pour imposer
+    le même niveau d'exigence partout (c'est pour cela qu'on ne répète pas ces lignes dans chaque .csproj).
+    Associer avec assets/.editorconfig (gravité des règles de sécurité).
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+
+    <!-- POURQUOI : active l'analyse de nullité. Un « ? » signifie « peut être absent », son absence « jamais null ».
+         Élimine toute une classe de NullReferenceException dès la compilation. -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- POURQUOI : un avertissement ignoré aujourd'hui est un bug en production demain.
+         Les avertissements deviennent des erreurs : le code ne se compile pas tant qu'ils ne sont pas traités. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Analyseurs Roslyn intégrés (qualité + sécurité). « Recommended » = bon compromis signal/bruit ;
+         les règles de SÉCURITÉ sont portées à « error » dans .editorconfig. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Compilations reproductibles : même source => mêmes binaires (utile pour vérifier l'intégrité). -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- SÉCURITÉ : audit des paquets NuGet vulnérables, y compris les dépendances indirectes. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <!-- Optionnel (décommenter une fois les paquets choisis) : verrouille les versions exactes restaurées.
+         Ensuite : « dotnet restore » avec l'option « locked-mode » en intégration continue.
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    -->
+  </PropertyGroup>
+
+  <!-- Documentation XML (<summary>…) exigée sur les membres publics, sauf dans les projets de tests. -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

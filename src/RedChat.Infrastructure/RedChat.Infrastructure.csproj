@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Réseau (TCP + UDP), BCL uniquement : aucune dépendance NuGet, compilable sur tout système. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RedChat.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RedChat.Core\RedChat.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Les tests accèdent aux types internal (ex. InsecureTestSecretProtector, AtomicFile). Le banc de la sandbox compile les tests
+         dans un seul exécutable nommé RedChat.Core.Tests, d'où la seconde ligne. -->
+    <InternalsVisibleTo Include="RedChat.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="RedChat.Core.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Core : logique pure, AUCUNE dépendance UI ni NuGet (compilable sur n'importe quel OS). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RedChat.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RedChat.Core.Tests" />
+  </ItemGroup>
+</Project>

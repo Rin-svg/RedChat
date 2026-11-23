@@ -1,0 +1,16 @@
+# Compilation
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+TestResults/
+installer/Output/
+# IDE
+.idea/
+.vs/
+*.user
+# Notes privees, archives et journaux
+HANDOFF*.md
+*.zip
+*.log
+*.bak

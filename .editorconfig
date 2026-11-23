@@ -1,0 +1,52 @@
+# .editorconfig — à placer à la RACINE de la solution, à côté de Directory.Build.props.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{csproj,props,targets,xaml,json,yml,yaml}]
+indent_size = 2
+
+[*.cs]
+# ---------------------------------------------------------------------------------------------
+# SÉCURITÉ : toutes les règles de la catégorie « Security » des analyseurs .NET deviennent des ERREURS.
+# Raison : SQL concaténé (CA2100), XML dangereux (CA3075), cryptographie faible (CA5350/CA5351),
+# validation de certificat désactivée (CA5359), désérialiseurs dangereux (CA2300…) ne doivent
+# jamais être « simplement un avertissement ».
+# Pour une exception volontaire : #pragma warning disable CAxxxx avec un commentaire « SÉCURITÉ : … » qui justifie.
+# ---------------------------------------------------------------------------------------------
+dotnet_analyzer_diagnostic.category-Security.severity = error
+
+# FIABILITÉ : erreurs fréquentes aux conséquences réelles
+dotnet_diagnostic.CA2007.severity = none        # ConfigureAwait : décision par projet (Core: oui, ViewModels: non)
+dotnet_diagnostic.CA1062.severity = none        # Validation des arguments publics : gérée par Nullable
+dotnet_diagnostic.CA1303.severity = none        # Chaînes littérales : gérées par les ressources projet par projet
+dotnet_diagnostic.CA1848.severity = suggestion  # LoggerMessage : optimisation, pas bloquante
+dotnet_diagnostic.CA1707.severity = none        # Underscores : autorisés (noms de tests Méthode_Condition_Résultat)
+
+# NOMMAGE
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+# STYLE : accolades toujours présentes (évite les erreurs de type « goto fail »)
+csharp_prefer_braces = true:warning
+csharp_style_namespace_declarations = file_scoped:warning
+
+# ---------------------------------------------------------------------------------------------
+# PROJETS DE TESTS (dossiers dont le nom se termine par « .Tests ») : assouplissements raisonnables.
+# Les méthodes de test d'instance sont la convention xUnit (CA1822 proposerait « static » partout).
+# Les règles de SÉCURITÉ restent des erreurs : un test ne doit pas non plus introduire de mauvaise pratique.
+# ---------------------------------------------------------------------------------------------
+[**.Tests/**.cs]
+dotnet_diagnostic.CA1822.severity = none
