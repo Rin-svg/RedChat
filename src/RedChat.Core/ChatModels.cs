@@ -96,6 +96,20 @@ public sealed record ChatMessage
     /// <summary>Vrai si l'auteur l'a supprimé pour tous.</summary>
     public bool IsDeleted { get; init; }
 
+    /// <summary>Vrai pour un message texte qui ne peut être consulté qu'une fois.</summary>
+    public bool IsViewOnce { get; init; }
+
+    /// <summary>Vrai si le destinataire a déjà ouvert le message à vue unique.</summary>
+    public bool IsViewOnceOpened { get; init; }
+
+    /// <summary>Indique que l'utilisateur peut ouvrir ce message à vue unique.</summary>
+    [JsonIgnore]
+    public bool CanOpenViewOnce => IsViewOnce && !IsOutgoing && !IsDeleted;
+
+    /// <summary>Libellé neutre d'un message à vue unique.</summary>
+    [JsonIgnore]
+    public string ViewOnceLabel => IsViewOnceOpened ? "Ouvert" : IsDeleted ? "Message consulté une fois" : IsOutgoing ? "Message envoyé en vue unique" : "Message à afficher une fois";
+
     /// <summary>Message entrant : vrai une fois lu localement (accusé « lu » envoyé).</summary>
     public bool IsReadByMe { get; init; }
 

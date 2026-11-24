@@ -348,6 +348,12 @@ public sealed class LanNode : IAsyncDisposable
             return;
         }
 
+        if (e.Packet.Kind == PacketKind.AttachmentViewOnceOpened)
+        {
+            Attachments.ReceiveViewOnceOpened(e.PeerId, e.Packet);
+            return;
+        }
+
         if (e.Packet.Kind == PacketKind.CallControl)
         {
             Calls.Receive(e.PeerId, e.Packet);

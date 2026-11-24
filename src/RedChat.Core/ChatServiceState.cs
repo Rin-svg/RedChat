@@ -163,6 +163,8 @@ public sealed partial class ChatService
         RequireStored(m.SentAtUnixMs > 0 && m.SentAtUnixMs <= newestAllowedMs, "Date de message invalide.");
         RequireStored(m.ReplyToId is null || InputValidator.IsValidGuid(m.ReplyToId), "Réponse invalide.");
         RequireStored(m.Text is not null && (m.IsDeleted ? m.Text.Length == 0 : InputValidator.IsValidMessageText(m.Text)), "Texte invalide.");
+        RequireStored(!m.IsViewOnce || !info.IsGroup && !info.IsSelfConversation, "Message à vue unique dans une conversation invalide.");
+        RequireStored(!m.IsViewOnceOpened || m.IsOutgoing && m.IsViewOnce && m.IsDeleted, "État d'ouverture de vue unique invalide.");
         RequireStored(m.Reactions is not null && m.Receipts is not null, "Message incomplet.");
 
         if (m.IsOutgoing)

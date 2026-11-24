@@ -437,7 +437,7 @@ public sealed class TcpTransport : ITransport, IAsyncDisposable
                     break;
                 }
 
-                if (p.Kind is PacketKind.ProfileUpdate or PacketKind.AttachmentChunk or PacketKind.CallControl)
+                if (p.Kind is PacketKind.ProfileUpdate or PacketKind.AttachmentChunk or PacketKind.AttachmentViewOnceOpened or PacketKind.CallControl)
                 {
                     PacketReceived?.Invoke(this, new PeerPacketEventArgs(peer, p));
                 }

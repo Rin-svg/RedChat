@@ -86,7 +86,7 @@ public sealed partial class ChatService
     // ───────────────────────────── Actions locales ─────────────────────────────
 
     /// <summary>Envoie un texte. <paramref name="conversationId"/> = PeerId du contact ou GUID d'un groupe connu.</summary>
-    public ChatMessage SendText(string conversationId, string text, string? replyToId = null)
+    public ChatMessage SendText(string conversationId, string text, string? replyToId = null, bool isViewOnce = false)
     {
         if (!InputValidator.IsValidMessageText(text))
         {
@@ -103,6 +103,10 @@ public sealed partial class ChatService
         lock (_lock)
         {
             Conv conv = GetOrCreateOutgoingConv(conversationId, events);
+            if (isViewOnce && (conv.Info.IsGroup || conv.Info.IsSelfConversation))
+            {
+                throw new InvalidOperationException("La vue unique est disponible uniquement dans une conversation privée.");
+            }
             string[] recipients = Recipients(conv);
             EnsureOutboxRoom(recipients, 1);
             Packet p = new()
@@ -113,6 +117,7 @@ public sealed partial class ChatService
                 SentAtUnixMs = Now().ToUnixTimeMilliseconds(),
                 Text = text,
                 ReplyToId = replyToId,
+                IsViewOnce = isViewOnce,
             };
             msg = new ChatMessage
             {
@@ -123,6 +128,7 @@ public sealed partial class ChatService
                 SentAtUnixMs = p.SentAtUnixMs,
                 IsOutgoing = true,
                 ReplyToId = replyToId,
+                IsViewOnce = isViewOnce,
                 IsReadByMe = true,
                 Receipts = new ReadOnlyDictionary<string, MessageStatus>(recipients.ToDictionary(r => r, _ => MessageStatus.Pending, StringComparer.Ordinal)),
             };
@@ -341,6 +347,36 @@ public sealed partial class ChatService
         Fire(events);
     }
 
+    /// <summary>Efface un message reçu à vue unique après consultation et notifie son auteur.</summary>
+    public void ConsumeViewOnceMessage(string conversationId, string messageId)
+    {
+        List<Action> events = new();
+        lock (_lock)
+        {
+            Conv conv = RequireConv(conversationId);
+            int i = IndexOf(conv, messageId);
+            if (conv.Info.IsGroup || i < 0 || conv.Messages[i].IsOutgoing || !conv.Messages[i].IsViewOnce || conv.Messages[i].IsDeleted)
+            {
+                throw new InvalidOperationException("Ce message à vue unique n'est plus disponible.");
+            }
+
+            ChatMessage message = conv.Messages[i];
+            conv.Messages[i] = Tombstone(message);
+            events.Add(Raise(ChatChangeKind.MessageUpdated, conv.Info.Id, messageId));
+            Packet opened = new()
+            {
+                Kind = PacketKind.ViewOnceOpened,
+                Id = NewId(),
+                ConversationId = message.SenderId,
+                SentAtUnixMs = Now().ToUnixTimeMilliseconds(),
+                TargetMessageId = messageId,
+            };
+            Enqueue(message.SenderId, opened, events, bestEffortWhenFull: true);
+        }
+
+        Fire(events);
+    }
+
     /// <summary>Marque la conversation comme lue : envoie un accusé « lu » pour chaque message entrant pas encore lu.</summary>
     public void MarkRead(string conversationId)
     {
@@ -435,6 +471,7 @@ public sealed partial class ChatService
                     SentAtUnixMs = m.SentAtUnixMs,
                     Text = m.Text,
                     ReplyToId = m.ReplyToId,
+                    IsViewOnce = m.IsViewOnce,
                 }, events);
             }
         }
@@ -501,6 +538,7 @@ public sealed partial class ChatService
                     SentAtUnixMs = p.SentAtUnixMs,
                     IsOutgoing = false,
                     ReplyToId = p.ReplyToId,
+                    IsViewOnce = p.IsViewOnce,
                 });
                 events.Add(Raise(ChatChangeKind.MessageAdded, conv.Info.Id, p.Id));
                 SendReceipt(sender, conv.Info.Id, p.Id, ReceiptState.Delivered, events);
@@ -527,6 +565,28 @@ public sealed partial class ChatService
                 RequireAuthor(conv, p.TargetMessageId!, sender);
                 Update(conv, p.TargetMessageId!, m => m.IsDeleted ? m : m with { Text = p.Text!, IsEdited = true }, events);
                 break;
+
+            case PacketKind.ViewOnceOpened:
+            {
+                int index = IndexOf(conv, p.TargetMessageId!);
+                if (conv.Info.IsGroup || index < 0)
+                {
+                    return;
+                }
+
+                ChatMessage message = conv.Messages[index];
+                if (!message.IsOutgoing || !message.IsViewOnce || message.SenderId != _self)
+                {
+                    throw new ProtocolViolationException("Confirmation de vue unique pour un message non admissible.");
+                }
+
+                if (!message.IsViewOnceOpened)
+                {
+                    conv.Messages[index] = Tombstone(message) with { IsViewOnceOpened = true };
+                    events.Add(Raise(ChatChangeKind.MessageUpdated, conv.Info.Id, message.Id));
+                }
+                break;
+            }
 
             default:
                 throw new ProtocolViolationException("Type de paquet inattendu.");

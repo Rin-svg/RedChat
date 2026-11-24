@@ -76,6 +76,7 @@ public static class PacketSerializer
             case PacketKind.Text:
                 Require(InputValidator.IsValidMessageText(p.Text), "Texte invalide.");
                 Require(p.ReplyToId is null || InputValidator.IsValidGuid(p.ReplyToId), "Réponse invalide.");
+                Require(!p.IsViewOnce || InputValidator.IsValidPeerId(p.ConversationId), "La vue unique est réservée aux conversations privées.");
                 break;
 
             case PacketKind.Receipt:
@@ -107,6 +108,16 @@ public static class PacketSerializer
             case PacketKind.Edit:
                 Require(InputValidator.IsValidGuid(p.TargetMessageId), "Message visé invalide.");
                 Require(InputValidator.IsValidMessageText(p.Text), "Texte invalide.");
+                break;
+
+            case PacketKind.ViewOnceOpened:
+                Require(InputValidator.IsValidPeerId(p.ConversationId), "Une confirmation de vue unique doit viser un pair privé.");
+                Require(InputValidator.IsValidGuid(p.TargetMessageId), "Message visé invalide.");
+                break;
+
+            case PacketKind.AttachmentViewOnceOpened:
+                Require(InputValidator.IsValidPeerId(p.ConversationId), "Une confirmation de pièce jointe doit viser un pair privé.");
+                Require(p.AttachmentTransferId is not null && InputValidator.IsValidGuid(p.AttachmentTransferId), "Identifiant de transfert invalide.");
                 break;
 
             case PacketKind.AttachmentChunk:
@@ -231,6 +242,8 @@ public static class PacketSerializer
     {
         Require(p.AttachmentTransferId is not null && InputValidator.IsValidGuid(p.AttachmentTransferId), "Identifiant de transfert invalide.");
         Require(p.AttachmentFileName is not null && IsSafeAttachmentName(p.AttachmentFileName), "Nom de fichier invalide.");
+        Require(!p.AttachmentIsViewOnce || InputValidator.IsValidPeerId(p.ConversationId)
+            && IsViewOnceMediaName(p.AttachmentFileName!), "Média à vue unique invalide.");
         Require(p.AttachmentFileSize is > 0 and <= ProtocolLimits.MaxAttachmentBytes, "Taille de fichier invalide.");
         Require(p.AttachmentSha256 is { Length: 64 } && p.AttachmentSha256.All(Uri.IsHexDigit), "Empreinte de fichier invalide.");
         Require(p.AttachmentChunkCount is > 0 && p.AttachmentChunkIndex is >= 0 && p.AttachmentChunkIndex < p.AttachmentChunkCount, "Index de bloc invalide.");
@@ -251,6 +264,21 @@ public static class PacketSerializer
         && !name.EndsWith('.') && !name.EndsWith(' ')
         && name is not "." and not ".."
         && !ReservedAttachmentNames.Contains(name.Split('.')[0]);
+
+    private static bool IsViewOnceMediaName(string name)
+    {
+        string extension = Path.GetExtension(name);
+        return extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".mov", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".avi", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".wmv", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static void Require(bool condition, string message)
     {

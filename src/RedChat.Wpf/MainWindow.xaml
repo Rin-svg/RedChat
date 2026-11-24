@@ -466,6 +466,39 @@
                                Margin="0,0,0,3" VerticalAlignment="Center" TextWrapping="Wrap" />
                     <Border Background="#172333" BorderBrush="#2A3D55" BorderThickness="1" CornerRadius="8"
                             Padding="7" Margin="0,0,0,4"
+                            Visibility="{Binding HasReceivedAttachments, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="Médias reçus" Foreground="#DCE8F5" FontSize="10"
+                                       FontWeight="SemiBold" Margin="2,0,0,4" />
+                            <ItemsControl ItemsSource="{Binding ReceivedAttachments}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="1,2">
+                                            <Button DockPanel.Dock="Right" Content="Ouvrir" Click="OpenReceivedAttachment_Click"
+                                                    Padding="9,3" Margin="6,0,0,0" FontSize="9" />
+                                            <TextBlock Text="{Binding FileName}" Foreground="#B9C9DC" FontSize="9"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text=" · Vue unique" Foreground="#FF9BAC" FontSize="9"
+                                                       VerticalAlignment="Center" Margin="4,0,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsViewOnce}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#172333" BorderBrush="#2A3D55" BorderThickness="1" CornerRadius="8"
+                            Padding="7" Margin="0,0,0,4"
                             Visibility="{Binding HasVoiceMessages, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
                             <TextBlock Text="Historique des messages vocaux" Foreground="#DCE8F5"
@@ -511,7 +544,30 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel>
-                                                <TextBlock Text="{Binding Text}" FontSize="12" Foreground="#F3F6FC" />
+                                                <TextBlock Text="{Binding ViewOnceLabel}" FontSize="12" Foreground="#F3F6FC">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsViewOnce}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Text}" FontSize="12" Foreground="#F3F6FC">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsViewOnce}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                                 <DockPanel LastChildFill="False" HorizontalAlignment="Right" Margin="0,5,0,0">
                                                     <TextBlock Text="{Binding SentAtUnixMs, Converter={StaticResource UnixTimeConverter}}" FontSize="9" Foreground="#C2CDE0" />
                                                     <TextBlock Text="{Binding Status}" FontSize="9" Foreground="#C2CDE0" Margin="7,0,0,0">
@@ -523,6 +579,10 @@
                                                 </TextBlock>
                                             </StackPanel>
                                         </Border>
+                                        <Button Content="Afficher une fois" Style="{StaticResource MessageActionButton}"
+                                                Click="ViewOnceMessage_Click" CommandParameter="{Binding}"
+                                                Visibility="{Binding CanOpenViewOnce, Converter={StaticResource BoolToVisibility}}"
+                                                HorizontalAlignment="Left" Margin="3,1,3,0" />
                                         <WrapPanel HorizontalAlignment="Left" Margin="3,1,3,0">
                                             <Button Content="Répondre" Style="{StaticResource MessageActionButton}" Command="{Binding DataContext.SelectedConversation.ReplyCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" CommandParameter="{Binding}" />
                                             <Button Content="👍" Style="{StaticResource MessageActionButton}" Command="{Binding DataContext.SelectedConversation.LikeCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" CommandParameter="{Binding Id}" />
@@ -609,14 +669,19 @@
                     </DockPanel>
                     <Border Background="#D90B1018" BorderBrush="#263A55" BorderThickness="1" CornerRadius="24" Padding="10,6">
                         <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="42"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="📎" Style="{StaticResource RoundActionButton}" Width="38" Height="38" Margin="0,0,4,0" Click="Attachment_Click" ToolTip="Joindre un fichier" automation:AutomationProperties.AutomationId="AttachFileButton" />
                             <Button Grid.Column="1" Content="🎙" Style="{StaticResource RoundActionButton}" Width="38" Height="38" Margin="0,0,4,0" Click="VoiceRecord_Click" ToolTip="Enregistrer / terminer un message vocal" automation:AutomationProperties.AutomationId="VoiceRecordButton" />
                             <Button Grid.Column="2" Content="▶" Style="{StaticResource RoundActionButton}" Width="38" Height="38" Margin="0,0,4,0" Click="PlayVoice_Click" IsEnabled="{Binding HasVoiceMessages}" ToolTip="Lire le vocal le plus récent" automation:AutomationProperties.AutomationId="PlayVoiceButton" />
                             <Button x:Name="StickerButton" Grid.Column="3" Content="▣" Style="{StaticResource RoundActionButton}" Width="38" Height="38" Margin="0,0,4,0" Click="StickerPicker_Click" ToolTip="Envoyer un sticker expressif" automation:AutomationProperties.AutomationId="StickerPickerButton" />
                             <Button x:Name="EmojiButton" Grid.Column="4" Content="😊" Style="{StaticResource RoundActionButton}" Width="38" Height="38" Margin="0,0,4,0" Click="EmojiPicker_Click" ToolTip="Insérer un emoji" automation:AutomationProperties.AutomationId="EmojiPickerButton" />
-                            <TextBox Grid.Column="5" Text="{Binding SelectedConversation.Draft, UpdateSourceTrigger=PropertyChanged}" TextChanged="Draft_TextChanged" MaxLength="8192" AcceptsReturn="True" MaxHeight="90" MinHeight="34" TextWrapping="Wrap" Background="Transparent" BorderThickness="0" Padding="7,8" FontSize="12" ToolTip="Écrire un message…" automation:AutomationProperties.AutomationId="MessageDraft" />
-                            <Button Grid.Column="6" Content="➤" Style="{StaticResource PrimaryButton}" Width="42" Height="42" Padding="0" Margin="3,0,0,0" FontSize="19" IsDefault="True" Command="{Binding SelectedConversation.SendCommand}" ToolTip="Envoyer le message" automation:AutomationProperties.AutomationId="SendMessageButton" />
+                            <ToggleButton Grid.Column="5" Content="1" Width="34" Height="34" Margin="2,0"
+                                          IsChecked="{Binding SelectedConversation.IsViewOnceMode}"
+                                          IsEnabled="{Binding SelectedConversation.CanUseViewOnce}"
+                                          ToolTip="Envoyer le prochain texte ou média en vue unique"
+                                          automation:AutomationProperties.AutomationId="ViewOnceToggle" />
+                            <TextBox Grid.Column="6" Text="{Binding SelectedConversation.Draft, UpdateSourceTrigger=PropertyChanged}" TextChanged="Draft_TextChanged" MaxLength="8192" AcceptsReturn="True" MaxHeight="90" MinHeight="34" TextWrapping="Wrap" Background="Transparent" BorderThickness="0" Padding="7,8" FontSize="12" ToolTip="Écrire un message…" automation:AutomationProperties.AutomationId="MessageDraft" />
+                            <Button Grid.Column="7" Content="➤" Style="{StaticResource PrimaryButton}" Width="42" Height="42" Padding="0" Margin="3,0,0,0" FontSize="19" IsDefault="True" Command="{Binding SelectedConversation.SendCommand}" ToolTip="Envoyer le message" automation:AutomationProperties.AutomationId="SendMessageButton" />
                         </Grid>
                     </Border>
                     <Popup x:Name="StickerPickerPopup" Placement="Top" PlacementTarget="{Binding ElementName=StickerButton}" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">

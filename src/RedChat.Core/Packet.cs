@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace RedChat.Core;
 
 /// <summary>Type de paquet applicatif échangé dans le canal chiffré.</summary>
@@ -44,6 +46,12 @@ public enum PacketKind
 
     /// <summary>Retrait d’un statut par son auteur.</summary>
     StatusDelete = 14,
+
+    /// <summary>Confirmation d’ouverture d’un message en vue unique.</summary>
+    ViewOnceOpened = 15,
+
+    /// <summary>Confirmation d’ouverture d’une pièce jointe en vue unique.</summary>
+    AttachmentViewOnceOpened = 16,
 }
 
 /// <summary>Action de signalisation utilisée pour gérer le cycle de vie d’un appel.</summary>
@@ -107,6 +115,10 @@ public sealed record Packet
     /// <summary>Texte (Text, Edit).</summary>
     public string? Text { get; init; }
 
+    /// <summary>Vrai pour un message texte à consulter une seule fois.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsViewOnce { get; init; }
+
     /// <summary>Message auquel on répond (Text).</summary>
     public string? ReplyToId { get; init; }
 
@@ -142,6 +154,10 @@ public sealed record Packet
 
     /// <summary>Identifiant du transfert de fichier (AttachmentChunk).</summary>
     public string? AttachmentTransferId { get; init; }
+
+    /// <summary>Vrai si la pièce jointe doit être ouverte puis supprimée après une seule consultation.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool AttachmentIsViewOnce { get; init; }
 
     /// <summary>Nom de fichier sans chemin (AttachmentChunk).</summary>
     public string? AttachmentFileName { get; init; }

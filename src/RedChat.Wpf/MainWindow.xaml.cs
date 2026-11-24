@@ -386,8 +386,8 @@ public partial class MainWindow : Window, IDisposable
 
         OpenFileDialog dialog = new()
         {
-            Title = "Joindre un fichier à la conversation",
-            Filter = "Tous les fichiers (*.*)|*.*",
+            Title = conversation.IsViewOnceMode ? "Envoyer une photo ou vidéo à vue unique" : "Joindre un fichier à la conversation",
+            Filter = "Photos et vidéos|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.mp4;*.m4v;*.mov;*.avi;*.wmv|Tous les fichiers (*.*)|*.*",
             CheckFileExists = true,
             Multiselect = false,
         };
@@ -398,11 +398,21 @@ public partial class MainWindow : Window, IDisposable
 
         try
         {
-            await _viewModel.SendAttachmentAsync(conversation.Info.Id, dialog.FileName);
-            MessageBox.Show("Le transfert du fichier a été placé dans la file d'envoi.", "RedChat — pièce jointe",
+            bool viewOnce = conversation.IsViewOnceMode;
+            if (viewOnce && !IsImageExtension(Path.GetExtension(dialog.FileName)) && !IsVideoExtension(Path.GetExtension(dialog.FileName)))
+            {
+                throw new InvalidDataException("La vue unique ne prend en charge que les photos et vidéos.");
+            }
+
+            await _viewModel.SendAttachmentAsync(conversation.Info.Id, dialog.FileName, viewOnce);
+            conversation.IsViewOnceMode = false;
+            MessageBox.Show(viewOnce
+                    ? "La photo ou vidéo a été envoyée en vue unique."
+                    : "Le transfert du fichier a été placé dans la file d'envoi.",
+                "RedChat — pièce jointe",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException or InvalidDataException)
         {
             MessageBox.Show(ex.Message, "RedChat — envoi impossible", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
@@ -674,6 +684,147 @@ public partial class MainWindow : Window, IDisposable
         FavoriteConversationButton.ToolTip = isFavorite ? "Retirer des favoris" : "Ajouter aux favoris";
         ApplySelectedConversationWallpaper();
     }
+
+    private void ViewOnceMessage_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not RedChat.Core.ChatMessage message
+            || !message.CanOpenViewOnce)
+        {
+            return;
+        }
+
+        MessageBox.Show(this, message.Text, "RedChat — message à vue unique",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+        try
+        {
+            _viewModel.ConsumeViewOnceMessage(message.ConversationId, message.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(this, ex.Message, "RedChat — vue unique", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OpenReceivedAttachment_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not RedChat.Infrastructure.AttachmentReceivedEventArgs attachment)
+        {
+            return;
+        }
+
+        if (!File.Exists(attachment.FilePath))
+        {
+            MessageBox.Show(this, "Ce fichier n'est plus disponible sur cet appareil.",
+                "RedChat — pièce jointe", MessageBoxButton.OK, MessageBoxImage.Information);
+            _ = _viewModel.ReceivedAttachments.Remove(attachment);
+            return;
+        }
+
+        string extension = Path.GetExtension(attachment.FileName);
+        bool isVideo = IsVideoExtension(extension);
+        bool isImage = IsImageExtension(extension);
+        if (!isVideo && !isImage)
+        {
+            MessageBox.Show(this, $"Le fichier a été enregistré ici :\n{attachment.FilePath}",
+                "RedChat — pièce jointe", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        bool displayed = false;
+        try
+        {
+            Window viewer;
+            if (isVideo)
+            {
+                MediaElement media = new()
+                {
+                    Source = new Uri(attachment.FilePath, UriKind.Absolute),
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Stop,
+                    Stretch = Stretch.Uniform,
+                };
+                media.MediaOpened += (_, _) => media.Play();
+                viewer = new Window
+                {
+                    Title = attachment.IsViewOnce ? "RedChat — vidéo à vue unique" : attachment.FileName,
+                    Width = 900,
+                    Height = 650,
+                    MinWidth = 480,
+                    MinHeight = 320,
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(8, 13, 22)),
+                    Content = media,
+                    Owner = this,
+                };
+                viewer.Closed += (_, _) =>
+                {
+                    media.Stop();
+                    media.Close();
+                };
+            }
+            else
+            {
+                BitmapImage bitmap = new();
+                using (FileStream stream = File.OpenRead(attachment.FilePath))
+                {
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.DecodePixelWidth = 1600;
+                    bitmap.StreamSource = stream;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                }
+
+                viewer = new Window
+                {
+                    Title = attachment.IsViewOnce ? "RedChat — photo à vue unique" : attachment.FileName,
+                    Width = 900,
+                    Height = 650,
+                    MinWidth = 360,
+                    MinHeight = 270,
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(8, 13, 22)),
+                    Content = new System.Windows.Controls.Image { Source = bitmap, Stretch = Stretch.Uniform },
+                    Owner = this,
+                };
+            }
+
+            displayed = true;
+            _ = viewer.ShowDialog();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or UriFormatException or InvalidOperationException)
+        {
+            MessageBox.Show(this, ex.Message, "RedChat — affichage impossible",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            if (displayed && attachment.IsViewOnce)
+            {
+                try
+                {
+                    _ = _viewModel.ConsumeViewOnceAttachment(attachment);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    MessageBox.Show(this, ex.Message, "RedChat — vue unique",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+    }
+
+    private static bool IsImageExtension(string extension) =>
+        extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsVideoExtension(string extension) =>
+        extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".mov", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".avi", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".wmv", StringComparison.OrdinalIgnoreCase);
 
     private void ApplySelectedConversationWallpaper()
     {

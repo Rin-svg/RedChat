@@ -42,7 +42,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DiscoveredPeers = new ObservableCollection<DiscoveredPeerViewModel>();
         ReceivedStatuses = new ObservableCollection<ReceivedStatusViewModel>();
         VoiceMessages = new ObservableCollection<VoiceMessageViewModel>();
+        ReceivedAttachments = new ObservableCollection<AttachmentReceivedEventArgs>();
         VoiceMessages.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVoiceMessages));
+        ReceivedAttachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasReceivedAttachments));
         OutgoingVoiceDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RedChat", "VoiceHistory", "Outgoing");
         LoadVoiceHistory();
         foreach (ReceivedStatusTombstone tombstone in _profileStore.LoadReceivedStatusTombstones(_node.PeerId))
@@ -66,6 +68,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Call = new CallViewModel(_node.Calls, _dispatcher, GetSelectedPrivatePeerId);
         _node.Chat.Changed += OnChatChanged;
         _node.Attachments.FileReceived += OnAttachmentReceived;
+        _node.Attachments.ViewOnceAttachmentOpened += OnViewOnceAttachmentOpened;
         _node.Attachments.ProgressChanged += OnAttachmentProgressChanged;
         _node.Statuses.StatusReceived += OnStatusReceived;
         _node.Statuses.StatusViewed += OnStatusViewed;
@@ -157,6 +160,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Historique local des messages vocaux reçus et envoyés.</summary>
     public ObservableCollection<VoiceMessageViewModel> VoiceMessages { get; }
+
+    /// <summary>Pièces jointes reçues pendant cette session, affichées dans la conversation.</summary>
+    public ObservableCollection<AttachmentReceivedEventArgs> ReceivedAttachments { get; }
+
+    /// <summary>Indique si des pièces jointes récentes peuvent être ouvertes.</summary>
+    public bool HasReceivedAttachments => ReceivedAttachments.Count > 0;
 
     private string OutgoingVoiceDirectory { get; }
 
@@ -297,14 +306,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand ConnectCommand { get; }
 
     /// <summary>Envoie un fichier dans une conversation en utilisant le canal TCP chiffré.</summary>
-    public async Task SendAttachmentAsync(string conversationId, string filePath, CancellationToken cancellationToken = default)
+    public async Task SendAttachmentAsync(string conversationId, string filePath, bool isViewOnce = false, CancellationToken cancellationToken = default)
     {
-        await _node.Attachments.SendFileAsync(conversationId, filePath, cancellationToken).ConfigureAwait(true);
+        await _node.Attachments.SendFileAsync(conversationId, filePath, isViewOnce, cancellationToken).ConfigureAwait(true);
         if (!_disposed)
         {
-            AttachmentNotice = "Fichier placé dans les files d'envoi des destinataires.";
+            AttachmentNotice = isViewOnce
+                ? "Média envoyé en vue unique."
+                : "Fichier placé dans les files d'envoi des destinataires.";
         }
     }
+
+    /// <summary>Consomme une pièce jointe à vue unique après son affichage.</summary>
+    public bool ConsumeViewOnceAttachment(AttachmentReceivedEventArgs attachment)
+    {
+        ArgumentNullException.ThrowIfNull(attachment);
+        bool acknowledged = _node.Attachments.ConsumeViewOnceAttachment(attachment);
+        _ = ReceivedAttachments.Remove(attachment);
+        AttachmentNotice = acknowledged
+            ? $"Média consulté une fois : {attachment.FileName}"
+            : "Le média a été supprimé après consultation, mais la confirmation n’a pas pu être envoyée.";
+        return acknowledged;
+    }
+
+    /// <summary>Consomme un message texte à vue unique après son affichage.</summary>
+    public void ConsumeViewOnceMessage(string conversationId, string messageId) =>
+        _node.Chat.ConsumeViewOnceMessage(conversationId, messageId);
 
     /// <summary>Crée un ViewModel de groupe relié au service courant.</summary>
     public CreateGroupViewModel CreateGroupViewModel() => new(_node.Chat, _node.Contacts);
@@ -438,6 +465,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ReceivedStatuses.CollectionChanged -= OnReceivedStatusesCollectionChanged;
         _node.Chat.Changed -= OnChatChanged;
         _node.Attachments.FileReceived -= OnAttachmentReceived;
+        _node.Attachments.ViewOnceAttachmentOpened -= OnViewOnceAttachmentOpened;
         _node.Attachments.ProgressChanged -= OnAttachmentProgressChanged;
         _node.Statuses.StatusReceived -= OnStatusReceived;
         _node.Statuses.StatusViewed -= OnStatusViewed;
@@ -519,13 +547,27 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (!_disposed)
         {
+            ReceivedAttachments.Insert(0, e);
             AttachmentNotice = $"Fichier reçu : {e.FileName} — {e.FilePath}";
+            if (e.IsViewOnce)
+            {
+                AttachmentNotice = $"Média reçu en vue unique : {e.FileName}";
+                return;
+            }
             if (string.Equals(Path.GetExtension(e.FileName), ".wav", StringComparison.OrdinalIgnoreCase))
             {
                 LastReceivedVoicePath = e.FilePath;
                 AddVoiceMessage(e.FilePath, e.FileName, "Reçu");
                 AttachmentNotice = $"Message vocal reçu : {e.FileName}";
             }
+        }
+    });
+
+    private void OnViewOnceAttachmentOpened(string transferId) => _dispatcher.Post(() =>
+    {
+        if (!_disposed)
+        {
+            AttachmentNotice = $"Votre média en vue unique a été consulté (transfert {transferId[..8]}).";
         }
     });
 

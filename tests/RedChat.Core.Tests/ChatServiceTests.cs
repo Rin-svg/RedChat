@@ -212,6 +212,30 @@ public class ChatServiceTests
     }
 
     [Fact]
+    public void ViewOnceText_IsRemovedOnOpen_AndSenderIsNotified()
+    {
+        var (net, a, b) = Pair();
+        ChatMessage sent = a.SendText(B, "secret", isViewOnce: true);
+
+        net.Pump();
+
+        ChatMessage received = Assert.Single(b.GetMessages(A));
+        Assert.True(received.IsViewOnce);
+        Assert.Equal("secret", received.Text);
+
+        b.ConsumeViewOnceMessage(A, received.Id);
+        Assert.True(b.GetMessages(A)[0].IsDeleted);
+        Assert.Equal(string.Empty, b.GetMessages(A)[0].Text);
+
+        net.Pump();
+
+        ChatMessage opened = Assert.Single(a.GetMessages(B));
+        Assert.True(opened.IsViewOnceOpened);
+        Assert.True(opened.IsDeleted);
+        Assert.Equal(string.Empty, opened.Text);
+    }
+
+    [Fact]
     public void MarkRead_SendsReadReceipt()
     {
         var (net, a, b) = Pair();

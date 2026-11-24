@@ -17,6 +17,7 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     private string? _editingMessageId;
     private string _editDraft = string.Empty;
     private string? _wallpaperPath;
+    private bool _isViewOnceMode;
     private bool _isPeerTyping;
     private bool _hasReceivedStatus;
     private string? _error;
@@ -67,6 +68,16 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
 
     /// <summary>Indique si un fond d'écran personnalisé est configuré.</summary>
     public bool HasWallpaper => !string.IsNullOrWhiteSpace(WallpaperPath);
+
+    /// <summary>Indique que le prochain texte ou média sera envoyé en vue unique.</summary>
+    public bool IsViewOnceMode
+    {
+        get => _isViewOnceMode;
+        set => SetProperty(ref _isViewOnceMode, value);
+    }
+
+    /// <summary>La vue unique ne s'applique qu'aux conversations privées.</summary>
+    public bool CanUseViewOnce => !Info.IsGroup && !Info.IsSelfConversation;
 
     /// <summary>Actualise le chemin du fond d'écran local de cette conversation.</summary>
     public void SetWallpaperPath(string? path) => WallpaperPath = path;
@@ -343,9 +354,10 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
             throw new ArgumentException("Le message est vide, trop long ou contient des caractères interdits.");
         }
 
-        _ = _chat.SendText(Info.Id, Draft, ReplyToId);
+        _ = _chat.SendText(Info.Id, Draft, ReplyToId, IsViewOnceMode);
         Draft = string.Empty;
         ReplyToId = null;
+        IsViewOnceMode = false;
         Error = null;
     }
 

@@ -201,6 +201,46 @@ public class TransportTests
     }
 
     [Fact]
+    public async Task ViewOnceImage_IsDeletedAfterOpen_AndAcknowledgedToSender()
+    {
+        using NetHelpers.Rig rig = new();
+        using TempRoot sourceRoot = new();
+        using TempRoot destinationRoot = new();
+        LanNode sender = rig.Add(options: new LanNodeOptions
+        {
+            BindAddress = IPAddress.Loopback,
+            EnableDiscovery = false,
+            AttachmentDirectory = Path.Combine(sourceRoot.Path, "sender-incoming"),
+        });
+        LanNode receiver = rig.Add(options: new LanNodeOptions
+        {
+            BindAddress = IPAddress.Loopback,
+            EnableDiscovery = false,
+            AttachmentDirectory = destinationRoot.Path,
+        });
+        NetHelpers.Rig.Link(sender, receiver);
+
+        string sourcePath = Path.Combine(sourceRoot.Path, "photo.jpg");
+        byte[] expected = RandomNumberGenerator.GetBytes(256);
+        await File.WriteAllBytesAsync(sourcePath, expected);
+
+        TaskCompletionSource<AttachmentReceivedEventArgs> received = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<string> opened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        receiver.Attachments.FileReceived += (_, e) => received.TrySetResult(e);
+        sender.Attachments.ViewOnceAttachmentOpened += transferId => opened.TrySetResult(transferId);
+
+        await sender.Attachments.SendFileAsync(receiver.PeerId, sourcePath, isViewOnce: true);
+        AttachmentReceivedEventArgs attachment = await received.Task.WaitAsync(NetHelpers.Limit);
+
+        Assert.True(attachment.IsViewOnce);
+        Assert.Contains("ViewOnce", attachment.FilePath, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(expected, await File.ReadAllBytesAsync(attachment.FilePath));
+        Assert.True(receiver.Attachments.ConsumeViewOnceAttachment(attachment));
+        Assert.False(File.Exists(attachment.FilePath));
+        Assert.Equal(attachment.TransferId, await opened.Task.WaitAsync(NetHelpers.Limit));
+    }
+
+    [Fact]
     public void AttachmentWithIncorrectSha256_IsRejectedAndTemporaryFileRemoved()
     {
         using NetHelpers.Rig rig = new();

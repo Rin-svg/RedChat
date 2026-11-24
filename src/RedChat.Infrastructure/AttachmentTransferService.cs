@@ -32,13 +32,15 @@ public sealed class AttachmentProgressEventArgs : EventArgs
 public sealed class AttachmentReceivedEventArgs : EventArgs
 {
     /// <summary>Crée les informations de réception.</summary>
-    public AttachmentReceivedEventArgs(string senderPeerId, string conversationId, string fileName, string filePath, long fileSize)
+    public AttachmentReceivedEventArgs(string senderPeerId, string conversationId, string transferId, string fileName, string filePath, long fileSize, bool isViewOnce)
     {
         SenderPeerId = senderPeerId;
         ConversationId = conversationId;
+        TransferId = transferId;
         FileName = fileName;
         FilePath = filePath;
         FileSize = fileSize;
+        IsViewOnce = isViewOnce;
     }
 
     /// <summary>Pair authentifié ayant envoyé le fichier.</summary>
@@ -46,6 +48,9 @@ public sealed class AttachmentReceivedEventArgs : EventArgs
 
     /// <summary>Conversation concernée.</summary>
     public string ConversationId { get; }
+
+    /// <summary>Identifiant unique du transfert de fichier.</summary>
+    public string TransferId { get; }
 
     /// <summary>Nom d'origine, sans chemin.</summary>
     public string FileName { get; }
@@ -55,6 +60,9 @@ public sealed class AttachmentReceivedEventArgs : EventArgs
 
     /// <summary>Taille en octets.</summary>
     public long FileSize { get; }
+
+    /// <summary>Vrai si le fichier doit être consulté une seule fois puis supprimé.</summary>
+    public bool IsViewOnce { get; }
 }
 
 /// <summary>
@@ -74,8 +82,10 @@ public sealed class AttachmentTransferService : IDisposable
     private readonly TcpTransport _transport;
     private readonly ChatService _chat;
     private readonly string _incomingDirectory;
+    private readonly string _viewOnceDirectory;
     private readonly object _gate = new();
     private readonly Dictionary<string, IncomingTransfer> _incoming = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _completedViewOnce = new(StringComparer.Ordinal);
     private readonly Timer _cleanupTimer;
     private bool _disposed;
 
@@ -85,6 +95,8 @@ public sealed class AttachmentTransferService : IDisposable
         public required string FileName { get; init; }
         public required long FileSize { get; init; }
         public required string Sha256 { get; init; }
+        public required bool IsViewOnce { get; init; }
+        public required string TransferId { get; init; }
         public required int ChunkCount { get; init; }
         public required string TemporaryPath { get; init; }
         public required FileStream Stream { get; init; }
@@ -115,7 +127,9 @@ public sealed class AttachmentTransferService : IDisposable
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _chat = chat ?? throw new ArgumentNullException(nameof(chat));
         _incomingDirectory = Path.GetFullPath(incomingDirectory ?? throw new ArgumentNullException(nameof(incomingDirectory)));
+        _viewOnceDirectory = Path.Combine(_incomingDirectory, "ViewOnce");
         Directory.CreateDirectory(_incomingDirectory);
+        CleanupViewOnceDirectory();
         CleanupAbandonedTemporaryFiles();
         _cleanupTimer = new Timer(_ =>
         {
@@ -135,6 +149,9 @@ public sealed class AttachmentTransferService : IDisposable
     /// <summary>Levé après la mise en file de chaque bloc sortant.</summary>
     public event EventHandler<AttachmentProgressEventArgs>? ProgressChanged;
 
+    /// <summary>Levé lorsque le destinataire a consulté une pièce jointe à vue unique.</summary>
+    public event Action<string>? ViewOnceAttachmentOpened;
+
     /// <summary>Dossier dans lequel les pièces jointes reçues sont enregistrées.</summary>
     public string IncomingDirectory => _incomingDirectory;
 
@@ -142,7 +159,7 @@ public sealed class AttachmentTransferService : IDisposable
     /// Envoie un fichier à tous les membres de la conversation. Les destinataires doivent être connectés ; aucun envoi partiel
     /// volontaire vers un groupe hors ligne n'est tenté. Le fichier est limité à 25 Mio.
     /// </summary>
-    public async Task SendFileAsync(string conversationId, string sourcePath, CancellationToken cancellationToken = default)
+    public async Task SendFileAsync(string conversationId, string sourcePath, bool isViewOnce = false, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(conversationId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
@@ -157,6 +174,11 @@ public sealed class AttachmentTransferService : IDisposable
             }
 
             info = _chat.EnsureDirectConversation(conversationId);
+        }
+
+        if (isViewOnce && (info.IsGroup || info.IsSelfConversation || !IsViewOnceMediaName(Path.GetExtension(sourcePath))))
+        {
+            throw new InvalidOperationException("La vue unique est réservée aux photos et vidéos dans une conversation privée.");
         }
 
         string fileName = Path.GetFileName(sourcePath);
@@ -207,6 +229,7 @@ public sealed class AttachmentTransferService : IDisposable
                     ConversationId = recipientConversationId,
                     SentAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     AttachmentTransferId = transferId,
+                    AttachmentIsViewOnce = isViewOnce,
                     AttachmentFileName = fileName,
                     AttachmentFileSize = content.LongLength,
                     AttachmentSha256 = sha256,
@@ -225,7 +248,66 @@ public sealed class AttachmentTransferService : IDisposable
             }
         }
 
-        _chat.SendText(conversationId, $"📎 {fileName} ({content.LongLength:N0} octets)");
+        string marker = isViewOnce
+            ? $"📷 {fileName} — envoyé en vue unique"
+            : $"📎 {fileName} ({content.LongLength:N0} octets)";
+        _chat.SendText(conversationId, marker);
+    }
+
+    /// <summary>Efface une pièce jointe à vue unique après affichage et notifie l'expéditeur.</summary>
+    public bool ConsumeViewOnceAttachment(AttachmentReceivedEventArgs attachment)
+    {
+        ArgumentNullException.ThrowIfNull(attachment);
+        if (!attachment.IsViewOnce)
+        {
+            throw new ArgumentException("La pièce jointe n'est pas à vue unique.", nameof(attachment));
+        }
+
+        string key = attachment.SenderPeerId + ":" + attachment.TransferId;
+        lock (_gate)
+        {
+            if (!_completedViewOnce.Remove(key, out string? path) || !string.Equals(path, attachment.FilePath, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Cette pièce jointe à vue unique a déjà été consultée ou n'est plus disponible.");
+            }
+
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _completedViewOnce[key] = path;
+                throw;
+            }
+        }
+
+        Packet opened = new()
+        {
+            Kind = PacketKind.AttachmentViewOnceOpened,
+            Id = Guid.NewGuid().ToString("D"),
+            ConversationId = attachment.SenderPeerId,
+            SentAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            AttachmentTransferId = attachment.TransferId,
+        };
+        return _transport.TrySend(attachment.SenderPeerId, opened);
+    }
+
+    /// <summary>Traite une confirmation d'ouverture provenant de l'identité authentifiée.</summary>
+    public void ReceiveViewOnceOpened(string senderPeerId, Packet packet)
+    {
+        ArgumentNullException.ThrowIfNull(packet);
+        if (packet.Kind != PacketKind.AttachmentViewOnceOpened)
+        {
+            throw new ArgumentException("Une confirmation d'ouverture est attendue.", nameof(packet));
+        }
+        PacketSerializer.Validate(packet, DateTimeOffset.UtcNow);
+        if (!InputValidator.IsValidPeerId(senderPeerId) || senderPeerId == _selfPeerId || packet.ConversationId != _selfPeerId)
+        {
+            throw new ProtocolViolationException("Confirmation de consultation adressée à un autre pair.");
+        }
+
+        ViewOnceAttachmentOpened?.Invoke(packet.AttachmentTransferId!);
     }
 
     /// <summary>Traite un bloc provenant d'un pair dont l'identité a été vérifiée par le handshake TCP.</summary>
@@ -269,6 +351,8 @@ public sealed class AttachmentTransferService : IDisposable
                         FileName = packet.AttachmentFileName!,
                         FileSize = packet.AttachmentFileSize.Value,
                         Sha256 = packet.AttachmentSha256!,
+                        IsViewOnce = packet.AttachmentIsViewOnce,
+                        TransferId = packet.AttachmentTransferId!,
                         ChunkCount = packet.AttachmentChunkCount!.Value,
                         TemporaryPath = temporaryPath,
                         Stream = stream,
@@ -289,6 +373,7 @@ public sealed class AttachmentTransferService : IDisposable
             else if (transfer.FileName != packet.AttachmentFileName
                 || transfer.FileSize != packet.AttachmentFileSize
                 || transfer.Sha256 != packet.AttachmentSha256
+                || transfer.IsViewOnce != packet.AttachmentIsViewOnce
                 || transfer.ChunkCount != packet.AttachmentChunkCount
                 || transfer.ConversationId != packet.ConversationId)
             {
@@ -325,9 +410,20 @@ public sealed class AttachmentTransferService : IDisposable
                     throw new InvalidDataException("L'intégrité du fichier reçu n'est pas valide ; le fichier a été rejeté.");
                 }
 
-                string destination = GetUniqueDestination(transfer.FileName);
+                string destination = transfer.IsViewOnce
+                    ? Path.Combine(_viewOnceDirectory, transfer.TransferId + Path.GetExtension(transfer.FileName))
+                    : GetUniqueDestination(transfer.FileName);
+                if (transfer.IsViewOnce)
+                {
+                    Directory.CreateDirectory(_viewOnceDirectory);
+                }
                 File.Move(transfer.TemporaryPath, destination);
-                completed = new AttachmentReceivedEventArgs(senderPeerId, transfer.ConversationId, transfer.FileName, destination, transfer.FileSize);
+                completed = new AttachmentReceivedEventArgs(senderPeerId, transfer.ConversationId, transfer.TransferId,
+                    transfer.FileName, destination, transfer.FileSize, transfer.IsViewOnce);
+                if (transfer.IsViewOnce)
+                {
+                    _completedViewOnce[key] = destination;
+                }
                 _incoming.Remove(key);
             }
         }
@@ -408,6 +504,26 @@ public sealed class AttachmentTransferService : IDisposable
         }
     }
 
+    private void CleanupViewOnceDirectory()
+    {
+        if (!Directory.Exists(_viewOnceDirectory))
+        {
+            return;
+        }
+
+        foreach (string path in Directory.EnumerateFiles(_viewOnceDirectory, "*", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Trace.WriteLine(ex);
+            }
+        }
+    }
+
     private void CleanupExpiredTransfers()
     {
         DateTimeOffset cutoff = DateTimeOffset.UtcNow - TransferLifetime;
@@ -449,6 +565,18 @@ public sealed class AttachmentTransferService : IDisposable
         && !name.EndsWith('.') && !name.EndsWith(' ')
         && name is not "." and not ".."
         && !ReservedFileNames.Contains(name.Split('.')[0]);
+
+    private static bool IsViewOnceMediaName(string extension) =>
+        extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".mov", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".avi", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".wmv", StringComparison.OrdinalIgnoreCase);
 
     private static string SanitizeFileName(string name)
     {
