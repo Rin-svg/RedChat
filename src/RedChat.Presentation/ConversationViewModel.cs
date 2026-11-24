@@ -16,6 +16,7 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     private string? _replyToId;
     private string? _editingMessageId;
     private string _editDraft = string.Empty;
+    private string? _wallpaperPath;
     private bool _isPeerTyping;
     private bool _hasReceivedStatus;
     private string? _error;
@@ -50,6 +51,25 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
 
     /// <summary>Description immuable de la conversation.</summary>
     public ConversationInfo Info { get; }
+
+    /// <summary>Chemin du fond d'écran local de cette conversation, s'il est configuré.</summary>
+    public string? WallpaperPath
+    {
+        get => _wallpaperPath;
+        private set
+        {
+            if (SetProperty(ref _wallpaperPath, value))
+            {
+                OnPropertyChanged(nameof(HasWallpaper));
+            }
+        }
+    }
+
+    /// <summary>Indique si un fond d'écran personnalisé est configuré.</summary>
+    public bool HasWallpaper => !string.IsNullOrWhiteSpace(WallpaperPath);
+
+    /// <summary>Actualise le chemin du fond d'écran local de cette conversation.</summary>
+    public void SetWallpaperPath(string? path) => WallpaperPath = path;
 
     /// <summary>Messages de la conversation, dans l'ordre chronologique de réception.</summary>
     public ObservableCollection<ChatMessage> Messages { get; }

@@ -426,6 +426,19 @@
                             <Button x:Name="CameraButton" Style="{StaticResource CallCameraButton}" Content="&#xE722;" automation:AutomationProperties.Name="Caméra" ToolTip="{Binding Call.CameraToolTip}" ToolTipService.Placement="Bottom" ToolTipService.InitialShowDelay="250" ToolTipService.ShowDuration="12000" Command="{Binding Call.ToggleCameraCommand}" Visibility="{Binding Call.IsVideoCall, Converter={StaticResource BoolToVisibility}}" automation:AutomationProperties.AutomationId="ToggleCameraButton" />
                             <Button x:Name="HangupButton" Style="{StaticResource CallHangupButton}" Content="&#xE711;" automation:AutomationProperties.Name="Raccrocher" ToolTip="Terminer ou annuler l’appel en cours" ToolTipService.Placement="Bottom" ToolTipService.InitialShowDelay="250" ToolTipService.ShowDuration="12000" Command="{Binding Call.HangupCommand}" Visibility="{Binding Call.IsCallActive, Converter={StaticResource BoolToVisibility}}" automation:AutomationProperties.AutomationId="HangupCallButton" />
                             <Button x:Name="FavoriteConversationButton" Style="{StaticResource RoundActionButton}" Content="☆" ToolTip="Ajouter aux favoris" Click="ToggleFavorite_Click" automation:AutomationProperties.AutomationId="FavoriteConversationButton" />
+                            <Button Style="{StaticResource RoundActionButton}" Content="🖼" Click="SetConversationWallpaper_Click" ToolTip="Choisir le fond d’écran de cette conversation" automation:AutomationProperties.AutomationId="SetConversationWallpaperButton" />
+                            <Button Content="×" Click="RemoveConversationWallpaper_Click" ToolTip="Retirer le fond d’écran personnalisé">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource RoundActionButton}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedConversation.HasWallpaper}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                             <Button Style="{StaticResource RoundActionButton}" Content="＋" Click="CreateGroup_Click" ToolTip="Créer un groupe" />
                             <Button Style="{StaticResource RoundActionButton}" Content="🗑" Click="RemoveConversation_Click" ToolTip="Supprimer cette discussion ou ce groupe" automation:AutomationProperties.AutomationId="RemoveConversationButton" />
                             <Button Style="{StaticResource RoundActionButton}" Content="⋮" Click="ToggleDetails_Click" ToolTip="Afficher / masquer les détails du contact" automation:AutomationProperties.AutomationId="ToggleDetailsButton" />
@@ -480,6 +493,9 @@
                     <TextBlock Text="{Binding Error}" Foreground="#FF8799" FontSize="10" Margin="0,0,0,3" />
                 </StackPanel>
                 <Grid Grid.Row="2" Background="#78070A10">
+                    <Image Source="{Binding SelectedConversation.WallpaperPath}" Stretch="UniformToFill"
+                           Opacity="0.55" IsHitTestVisible="False" />
+                    <Border Background="#78070A10" IsHitTestVisible="False" />
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 
                         <ItemsControl ItemsSource="{Binding SelectedConversation.Messages}">

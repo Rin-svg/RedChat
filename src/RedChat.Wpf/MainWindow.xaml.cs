@@ -1,6 +1,8 @@
 using System.IO;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -670,6 +672,133 @@ public partial class MainWindow : Window, IDisposable
             && _favorites.Contains(conversation.Info.Id);
         FavoriteConversationButton.Content = isFavorite ? "★" : "☆";
         FavoriteConversationButton.ToolTip = isFavorite ? "Retirer des favoris" : "Ajouter aux favoris";
+        ApplySelectedConversationWallpaper();
+    }
+
+    private void ApplySelectedConversationWallpaper()
+    {
+        if (_viewModel.SelectedConversation is not { } conversation)
+        {
+            return;
+        }
+
+        conversation.SetWallpaperPath(FindConversationWallpaperPath(conversation.Info.Id));
+    }
+
+    private static string GetConversationWallpaperKey(string conversationId) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(conversationId)));
+
+    private static string GetConversationWallpaperDirectory() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RedChat", "ConversationWallpapers");
+
+    private static string GetConversationWallpaperRemovalMarker(string conversationId) =>
+        Path.Combine(GetConversationWallpaperDirectory(), GetConversationWallpaperKey(conversationId) + ".removed");
+
+    private static string? FindConversationWallpaperPath(string conversationId)
+    {
+        string directory = GetConversationWallpaperDirectory();
+        if (!Directory.Exists(directory) || File.Exists(GetConversationWallpaperRemovalMarker(conversationId)))
+        {
+            return null;
+        }
+
+        string key = GetConversationWallpaperKey(conversationId);
+        string legacyPath = Path.Combine(directory, key + ".png");
+        return Directory.EnumerateFiles(directory, key + "-*.png")
+            .Append(legacyPath)
+            .Where(File.Exists)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+    }
+
+    private void SetConversationWallpaper_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedConversation is not { } conversation)
+        {
+            return;
+        }
+
+        OpenFileDialog dialog = new()
+        {
+            Title = "Choisir le fond d’écran de cette conversation",
+            Filter = "Images PNG ou JPEG|*.png;*.jpg;*.jpeg",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            FileInfo source = new(dialog.FileName);
+            if (source.Length is <= 0 or > 20 * 1024 * 1024)
+            {
+                throw new InvalidDataException("L’image doit peser moins de 20 Mo.");
+            }
+
+            BitmapImage bitmap = new();
+            using (FileStream stream = File.OpenRead(dialog.FileName))
+            {
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+                bitmap.StreamSource = stream;
+                bitmap.DecodePixelWidth = 1920;
+                bitmap.EndInit();
+                bitmap.Freeze();
+            }
+
+            if (bitmap.PixelWidth is < 32 or > 8192
+                || bitmap.PixelHeight is < 32 or > 8192
+                || (long)bitmap.PixelWidth * bitmap.PixelHeight > 30_000_000)
+            {
+                throw new InvalidDataException("Les dimensions de l’image sont trop grandes ou trop petites.");
+            }
+
+            PngBitmapEncoder encoder = new();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            string directory = GetConversationWallpaperDirectory();
+            Directory.CreateDirectory(directory);
+            string fileId = Guid.NewGuid().ToString("N");
+            string destination = Path.Combine(directory, $"{GetConversationWallpaperKey(conversation.Info.Id)}-{fileId}.png");
+            string temporary = destination + ".tmp";
+            using (FileStream output = new(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                encoder.Save(output);
+            }
+            File.Move(temporary, destination);
+            string removalMarker = GetConversationWallpaperRemovalMarker(conversation.Info.Id);
+            if (File.Exists(removalMarker))
+            {
+                File.Delete(removalMarker);
+            }
+            conversation.SetWallpaperPath(destination);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or FormatException or ArgumentException)
+        {
+            MessageBox.Show(ex.Message, "RedChat — fond d’écran", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void RemoveConversationWallpaper_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedConversation is not { HasWallpaper: true } conversation)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(GetConversationWallpaperDirectory());
+            File.WriteAllText(GetConversationWallpaperRemovalMarker(conversation.Info.Id), string.Empty);
+            conversation.SetWallpaperPath(null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "RedChat — fond d’écran", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void ContactList_SelectionChanged(object sender, SelectionChangedEventArgs e)
