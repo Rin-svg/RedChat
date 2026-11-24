@@ -10,6 +10,7 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     private readonly ContactBook _contacts;
     private readonly IUiDispatcher _dispatcher;
     private readonly string? _selfPeerId;
+    private PersonalProfile? _selfProfile;
     private readonly ITimer _typingTimer;
     private string _draft = string.Empty;
     private string? _replyToId;
@@ -23,13 +24,14 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     private bool _disposed;
 
     /// <summary>Crée le modèle de vue et s'abonne aux changements du service.</summary>
-    public ConversationViewModel(ConversationInfo info, ChatService chat, ContactBook contacts, IUiDispatcher dispatcher, TimeProvider? clock = null, string? selfPeerId = null)
+    public ConversationViewModel(ConversationInfo info, ChatService chat, ContactBook contacts, IUiDispatcher dispatcher, TimeProvider? clock = null, string? selfPeerId = null, PersonalProfile? selfProfile = null)
     {
         Info = info ?? throw new ArgumentNullException(nameof(info));
         _chat = chat ?? throw new ArgumentNullException(nameof(chat));
         _contacts = contacts ?? throw new ArgumentNullException(nameof(contacts));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _selfPeerId = selfPeerId;
+        _selfProfile = selfProfile;
         _clock = clock ?? TimeProvider.System;
         _typingTimer = _clock.CreateTimer(OnTypingTimeout, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         Messages = new ObservableCollection<ChatMessage>(_chat.GetMessages(Info.Id));
@@ -54,7 +56,7 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
 
     /// <summary>Nom affiché (surnom local prioritaire, sinon profil public, ou titre du groupe).</summary>
     public string DisplayName => Info.IsGroup ? Info.Title ?? "Groupe"
-        : Info.Id == _selfPeerId ? "Vous (vous)" : _contacts.DisplayLabel(Info.Id);
+        : Info.Id == _selfPeerId ? $"{_selfProfile?.DisplayName ?? "Vous"} (vous)" : _contacts.DisplayLabel(Info.Id);
 
     /// <summary>Indique si le correspondant a au moins un statut encore disponible.</summary>
     public bool HasReceivedStatus
@@ -87,9 +89,11 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     /// Photo publiée par le contact dans son profil public (PNG/JPEG déjà validé par le Core), ou null (groupe, pas de photo).
     /// Une copie est renvoyée : l'appelant ne peut pas modifier le carnet de contacts.
     /// </summary>
-    public byte[]? RemoteAvatarBytes => Info.IsGroup || Info.Id == _selfPeerId
+    public byte[]? RemoteAvatarBytes => Info.IsGroup
         ? null
-        : _contacts.Find(Info.Id)?.PublicProfile?.AvatarBytes?.ToArray();
+        : Info.Id == _selfPeerId
+            ? _selfProfile?.AvatarBytes?.ToArray()
+            : _contacts.Find(Info.Id)?.PublicProfile?.AvatarBytes?.ToArray();
 
     /// <summary>Initiales utilisées comme avatar de remplacement lorsque le contact ne possède pas de photo.</summary>
     public string AvatarInitials
@@ -98,20 +102,43 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
         {
             if (Info.Id == _selfPeerId)
             {
-                return "VO";
+                return GetInitials(_selfProfile?.DisplayName ?? "Vous");
             }
-            string[] parts = DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length == 0)
-            {
-                return "RC";
-            }
-
-            string first = parts[0];
-            string last = parts.Length > 1 ? parts[^1] : string.Empty;
-            return last.Length == 0
-                ? first[..Math.Min(2, first.Length)].ToUpperInvariant()
-                : string.Concat(char.ToUpperInvariant(first[0]), char.ToUpperInvariant(last[0]));
+            return GetInitials(DisplayName);
         }
+    }
+
+    /// <summary>Actualise le nom et l'avatar du profil local dans cette conversation.</summary>
+    public void SetSelfProfile(PersonalProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if (profile.PeerId != _selfPeerId)
+        {
+            throw new ArgumentException("Le profil ne correspond pas à l'identité locale.", nameof(profile));
+        }
+
+        _selfProfile = profile with { AvatarBytes = profile.AvatarBytes?.ToArray() };
+        if (Info.Id == _selfPeerId)
+        {
+            OnPropertyChanged(nameof(DisplayName));
+            OnPropertyChanged(nameof(AvatarInitials));
+            OnPropertyChanged(nameof(RemoteAvatarBytes));
+        }
+    }
+
+    private static string GetInitials(string name)
+    {
+        string[] parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return "RC";
+        }
+
+        string first = parts[0];
+        string last = parts.Length > 1 ? parts[^1] : string.Empty;
+        return last.Length == 0
+            ? first[..Math.Min(2, first.Length)].ToUpperInvariant()
+            : string.Concat(char.ToUpperInvariant(first[0]), char.ToUpperInvariant(last[0]));
     }
 
     /// <summary>Dernier message, pour l'aperçu de la liste des conversations.</summary>

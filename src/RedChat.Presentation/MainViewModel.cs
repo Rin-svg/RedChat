@@ -24,6 +24,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private ConversationViewModel? _selectedConversation;
     private ContactViewModel? _selectedContact;
     private ContactViewModel? _selectedAddressBookContact;
+    private PersonalProfile _selfProfile;
     private bool _disposed;
 
     /// <summary>Assemble le modèle racine après le chargement du profil et avant le démarrage du nœud.</summary>
@@ -34,6 +35,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _favorites = favorites ?? throw new ArgumentNullException(nameof(favorites));
         _profileStore = profileStore ?? throw new ArgumentNullException(nameof(profileStore));
+        _selfProfile = _profileStore.LoadPersonalProfile(_node.PeerId) ?? PersonalProfile.CreateDefault(_node.PeerId);
         StartupNotice = persistence.StartupNotice;
         Conversations = new ObservableCollection<ConversationViewModel>();
         Contacts = new ObservableCollection<ContactViewModel>();
@@ -80,6 +82,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Identité cryptographique locale utilisée pour signer logiquement les statuts via le canal authentifié.</summary>
     public string LocalPeerId => _node.PeerId;
+
+    /// <summary>Profil public local actuellement affiché dans l'application.</summary>
+    public PersonalProfile SelfProfile => _selfProfile;
 
     /// <summary>Contacts connus, utilisés pour construire l'audience des statuts.</summary>
     public IReadOnlyList<Contact> GetStatusContacts() => _node.Contacts.GetAll();
@@ -356,6 +361,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedConversation = _conversationById[info.Id];
     }
 
+    /// <summary>Actualise l'identité publique locale affichée dans la conversation personnelle.</summary>
+    public void UpdateSelfProfile(PersonalProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        _selfProfile = profile.Validate(_node.PeerId);
+        foreach (ConversationViewModel conversation in _conversationById.Values)
+        {
+            conversation.SetSelfProfile(_selfProfile);
+        }
+    }
+
     /// <summary>Rafraîchit la liste à partir des instantanés thread-safe du service.</summary>
     public void RefreshConversations()
     {
@@ -376,7 +392,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!_conversationById.TryGetValue(info.Id, out ConversationViewModel? vm))
             {
-                vm = new ConversationViewModel(info, _node.Chat, _node.Contacts, _dispatcher, selfPeerId: _node.PeerId);
+                vm = new ConversationViewModel(info, _node.Chat, _node.Contacts, _dispatcher,
+                    selfPeerId: _node.PeerId, selfProfile: _selfProfile);
                 _conversationById.Add(info.Id, vm);
             }
             else

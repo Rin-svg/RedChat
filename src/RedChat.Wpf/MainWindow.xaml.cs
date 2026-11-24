@@ -71,6 +71,8 @@ public partial class MainWindow : Window, IDisposable
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _personalProfile = personalProfile ?? throw new ArgumentNullException(nameof(personalProfile));
         SelfStatusCard.DataContext = _personalProfile;
+        _viewModel.UpdateSelfProfile(_personalProfile.CurrentProfile);
+        _personalProfile.ProfileSaved += OnSelfProfileSaved;
         _favorites = _viewModel.Favorites;
         _favorites.Changed += OnFavoritesChanged;
         DataContext = _viewModel;
@@ -158,6 +160,7 @@ public partial class MainWindow : Window, IDisposable
             _viewModel.Calls.SignalReceived -= OnCallSignalReceived;
             await DisposeCallMediaEngineAsync();
             _favorites.Changed -= OnFavoritesChanged;
+            _personalProfile.ProfileSaved -= OnSelfProfileSaved;
             Dispose();
             _allowClose = true;
             Close();
@@ -242,6 +245,9 @@ public partial class MainWindow : Window, IDisposable
         StatusCenterWindow window = new(_viewModel) { Owner = this };
         window.ShowDialog();
     }
+
+    private void OnSelfProfileSaved(object? sender, EventArgs e) =>
+        _viewModel.UpdateSelfProfile(_personalProfile.CurrentProfile);
 
     private void ContactAvatar_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {

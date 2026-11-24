@@ -361,7 +361,7 @@ public partial class StatusCenterWindow : Window
             CreatedAt = item.CreatedAt,
             ExpiresAt = item.ExpiresAt,
         };
-        return new ReceivedStatusViewModel(status, "Vous");
+        return new ReceivedStatusViewModel(status, _viewModel.SelfProfile.DisplayName);
     }
 
     private void OnExpiryTimerTick(object? sender, EventArgs e)
