@@ -166,6 +166,30 @@ public sealed partial class ChatService
         return info;
     }
 
+    /// <summary>Crée ou retourne la conversation locale de notes personnelles, sans destinataire réseau.</summary>
+    public ConversationInfo EnsureSelfConversation()
+    {
+        List<Action> events = new();
+        ConversationInfo info;
+        lock (_lock)
+        {
+            if (!_convs.TryGetValue(_self, out Conv? conversation))
+            {
+                conversation = new Conv(new ConversationInfo { Id = _self, IsSelfConversation = true });
+                _convs.Add(_self, conversation);
+                events.Add(Raise(ChatChangeKind.ConversationAdded, _self));
+            }
+            info = conversation.Info;
+        }
+
+        if (events.Count != 0)
+        {
+            Fire(events);
+        }
+
+        return info;
+    }
+
     /// <summary>Supprime une conversation de cet appareil sans notifier les autres membres.</summary>
     /// <remarks>Les paquets en attente liés à cette conversation sont aussi retirés des files locales.</remarks>
     public bool RemoveConversation(string conversationId)
@@ -622,7 +646,11 @@ public sealed partial class ChatService
         _convs.TryGetValue(conversationId, out Conv? c) ? c : throw new InvalidOperationException("Conversation inconnue.");
 
     private string[] Recipients(Conv conv) =>
-        conv.Info.IsGroup ? conv.Info.Members.Where(m => m != _self).ToArray() : new[] { conv.Info.Id };
+        conv.Info.IsSelfConversation
+            ? Array.Empty<string>()
+            : conv.Info.IsGroup
+            ? conv.Info.Members.Where(m => m != _self).ToArray()
+            : new[] { conv.Info.Id };
 
     private static int IndexOf(Conv conv, string messageId) => conv.Messages.FindIndex(m => m.Id == messageId);
 

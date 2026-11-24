@@ -70,6 +70,7 @@ public partial class MainWindow : Window, IDisposable
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _personalProfile = personalProfile ?? throw new ArgumentNullException(nameof(personalProfile));
+        SelfStatusCard.DataContext = _personalProfile;
         _favorites = _viewModel.Favorites;
         _favorites.Changed += OnFavoritesChanged;
         DataContext = _viewModel;
@@ -253,6 +254,7 @@ public partial class MainWindow : Window, IDisposable
         {
             ConversationViewModel conversation when !conversation.Info.IsGroup => conversation.Info.Id,
             ContactViewModel contact => contact.PeerId,
+            PersonalProfileViewModel profile => profile.PeerId,
             _ => null,
         };
 
@@ -262,8 +264,24 @@ public partial class MainWindow : Window, IDisposable
         }
 
         e.Handled = true;
+        bool isOwnStatus = peerId == _viewModel.LocalPeerId;
+        if (!isOwnStatus && !_viewModel.ReceivedStatuses.Any(status =>
+            status.OwnerPeerId == peerId && status.ExpiresAt > DateTimeOffset.UtcNow))
+        {
+            return;
+        }
+
         StatusCenterWindow window = new(_viewModel, peerId) { Owner = this };
         window.ShowDialog();
+    }
+
+    private void OpenSelfConversation_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        _viewModel.OpenSelfConversation();
+        ShowChats_Click(this, new RoutedEventArgs());
+        ConversationList.SelectedItem = _viewModel.SelectedConversation;
+        ConversationList.ScrollIntoView(_viewModel.SelectedConversation);
+        e.Handled = true;
     }
 
     private void StickerPicker_Click(object sender, RoutedEventArgs e)
@@ -691,6 +709,7 @@ public partial class MainWindow : Window, IDisposable
         ListHeading.Text = "DISCUSSIONS RÉCENTES";
         ConversationList.Visibility = Visibility.Visible;
         ContactsList.Visibility = Visibility.Collapsed;
+        SelfStatusCard.Visibility = Visibility.Collapsed;
         OpenContactButton.Visibility = Visibility.Collapsed;
         CreateGroupButton.Visibility = Visibility.Visible;
         ConversationEmptyState.Visibility = _viewModel.Conversations.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -709,6 +728,7 @@ public partial class MainWindow : Window, IDisposable
         ListHeading.Text = "CARNET D'AMIS";
         ConversationList.Visibility = Visibility.Collapsed;
         ContactsList.Visibility = Visibility.Visible;
+        SelfStatusCard.Visibility = Visibility.Visible;
         OpenContactButton.Visibility = Visibility.Visible;
         OpenContactButton.IsEnabled = _viewModel.SelectedAddressBookContact is not null;
         CreateGroupButton.Visibility = Visibility.Collapsed;
@@ -862,6 +882,7 @@ public partial class MainWindow : Window, IDisposable
         ListHeading.Text = "CONVERSATIONS FAVORITES";
         ConversationList.Visibility = Visibility.Visible;
         ContactsList.Visibility = Visibility.Collapsed;
+        SelfStatusCard.Visibility = Visibility.Collapsed;
         OpenContactButton.Visibility = Visibility.Collapsed;
         CreateGroupButton.Visibility = Visibility.Visible;
         ContactsEmptyState.Visibility = Visibility.Collapsed;

@@ -9,24 +9,27 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     private readonly ChatService _chat;
     private readonly ContactBook _contacts;
     private readonly IUiDispatcher _dispatcher;
+    private readonly string? _selfPeerId;
     private readonly ITimer _typingTimer;
     private string _draft = string.Empty;
     private string? _replyToId;
     private string? _editingMessageId;
     private string _editDraft = string.Empty;
     private bool _isPeerTyping;
+    private bool _hasReceivedStatus;
     private string? _error;
     private readonly TimeProvider _clock;
     private long _lastTypingUnixMs;
     private bool _disposed;
 
     /// <summary>Crée le modèle de vue et s'abonne aux changements du service.</summary>
-    public ConversationViewModel(ConversationInfo info, ChatService chat, ContactBook contacts, IUiDispatcher dispatcher, TimeProvider? clock = null)
+    public ConversationViewModel(ConversationInfo info, ChatService chat, ContactBook contacts, IUiDispatcher dispatcher, TimeProvider? clock = null, string? selfPeerId = null)
     {
         Info = info ?? throw new ArgumentNullException(nameof(info));
         _chat = chat ?? throw new ArgumentNullException(nameof(chat));
         _contacts = contacts ?? throw new ArgumentNullException(nameof(contacts));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _selfPeerId = selfPeerId;
         _clock = clock ?? TimeProvider.System;
         _typingTimer = _clock.CreateTimer(OnTypingTimeout, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         Messages = new ObservableCollection<ChatMessage>(_chat.GetMessages(Info.Id));
@@ -50,14 +53,25 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     public ObservableCollection<ChatMessage> Messages { get; }
 
     /// <summary>Nom affiché (surnom local prioritaire, sinon profil public, ou titre du groupe).</summary>
-    public string DisplayName => Info.IsGroup ? Info.Title ?? "Groupe" : _contacts.DisplayLabel(Info.Id);
+    public string DisplayName => Info.IsGroup ? Info.Title ?? "Groupe"
+        : Info.Id == _selfPeerId ? "Vous (vous)" : _contacts.DisplayLabel(Info.Id);
+
+    /// <summary>Indique si le correspondant a au moins un statut encore disponible.</summary>
+    public bool HasReceivedStatus
+    {
+        get => _hasReceivedStatus;
+        private set => SetProperty(ref _hasReceivedStatus, value);
+    }
+
+    /// <summary>Met à jour l'indicateur de statut reçu du correspondant.</summary>
+    public void SetHasReceivedStatus(bool value) => HasReceivedStatus = value;
 
     /// <summary>Chemin de la photo importée localement pour ce contact (elle prime sur la photo publiée par le contact), ou null.</summary>
     public string? AvatarPath
     {
         get
         {
-            if (Info.IsGroup)
+            if (Info.IsGroup || Info.Id == _selfPeerId)
             {
                 return null;
             }
@@ -73,13 +87,19 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     /// Photo publiée par le contact dans son profil public (PNG/JPEG déjà validé par le Core), ou null (groupe, pas de photo).
     /// Une copie est renvoyée : l'appelant ne peut pas modifier le carnet de contacts.
     /// </summary>
-    public byte[]? RemoteAvatarBytes => Info.IsGroup ? null : _contacts.Find(Info.Id)?.PublicProfile?.AvatarBytes?.ToArray();
+    public byte[]? RemoteAvatarBytes => Info.IsGroup || Info.Id == _selfPeerId
+        ? null
+        : _contacts.Find(Info.Id)?.PublicProfile?.AvatarBytes?.ToArray();
 
     /// <summary>Initiales utilisées comme avatar de remplacement lorsque le contact ne possède pas de photo.</summary>
     public string AvatarInitials
     {
         get
         {
+            if (Info.Id == _selfPeerId)
+            {
+                return "VO";
+            }
             string[] parts = DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (parts.Length == 0)
             {
@@ -217,6 +237,11 @@ public sealed class ConversationViewModel : ObservableObject, IDisposable
     /// <summary>Envoie un indicateur « écrit… » au maximum une fois toutes les deux secondes.</summary>
     public void NotifyTyping()
     {
+        if (Info.Id == _selfPeerId)
+        {
+            return;
+        }
+
         long now = _clock.GetUtcNow().ToUnixTimeMilliseconds();
         if (now - _lastTypingUnixMs >= 2_000)
         {

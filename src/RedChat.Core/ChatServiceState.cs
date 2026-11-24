@@ -115,7 +115,12 @@ public sealed partial class ChatService
         ConversationInfo info = cs!.Info;
         RequireStored(info.Id is not null && info.Members is not null, "Description de conversation incomplète.");
 
-        if (info.IsGroup)
+        if (info.IsSelfConversation)
+        {
+            RequireStored(!info.IsGroup && info.Id == _self, "Conversation personnelle invalide.");
+            RequireStored(info.Title is null && info.Members.Count == 0 && info.CreatorId is null, "Conversation personnelle avec des champs de groupe.");
+        }
+        else if (info.IsGroup)
         {
             RequireStored(InputValidator.IsValidGuid(info.Id), "Identifiant de groupe invalide.");
             RequireStored(

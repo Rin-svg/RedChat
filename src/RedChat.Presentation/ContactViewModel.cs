@@ -10,6 +10,7 @@ public sealed class ContactViewModel : ObservableObject
     private readonly string _peerId;
     private string _displayName;
     private string? _error;
+    private bool _hasReceivedStatus;
 
     /// <summary>Crée le modèle de vue d'un contact existant.</summary>
     public ContactViewModel(Contact contact, string selfPeerId, ContactBook contacts)
@@ -30,6 +31,16 @@ public sealed class ContactViewModel : ObservableObject
 
     /// <summary>Identité cryptographique du contact.</summary>
     public string PeerId => _peerId;
+
+    /// <summary>Indique si ce contact a au moins un statut encore disponible.</summary>
+    public bool HasReceivedStatus
+    {
+        get => _hasReceivedStatus;
+        private set => SetProperty(ref _hasReceivedStatus, value);
+    }
+
+    /// <summary>Met à jour l'indicateur de statut reçu.</summary>
+    public void SetHasReceivedStatus(bool value) => HasReceivedStatus = value;
 
     /// <summary>Chemin de l'avatar importé localement, s'il existe.</summary>
     public string? AvatarPath

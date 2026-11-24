@@ -116,6 +116,9 @@ public sealed record ConversationInfo
     /// <summary>PeerId de l'interlocuteur (1-à-1) ou GUID du groupe.</summary>
     public string Id { get; init; } = string.Empty;
 
+    /// <summary>Conversation personnelle locale, sans destinataire réseau.</summary>
+    public bool IsSelfConversation { get; init; }
+
     /// <summary>Vrai pour un groupe.</summary>
     public bool IsGroup { get; init; }
 

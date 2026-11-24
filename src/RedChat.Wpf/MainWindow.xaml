@@ -252,7 +252,8 @@
                         <DataTemplate>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="42"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Grid Width="38" Height="38" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="ContactAvatar_Click" ToolTip="Voir les statuts de ce contact">
+                                <Grid Width="38" Height="38" VerticalAlignment="Center" MouseLeftButtonUp="ContactAvatar_Click">
+                                    <Grid.Style><Style TargetType="Grid"><Setter Property="Cursor" Value="Arrow"/><Setter Property="ToolTip" Value="Aucun statut disponible"/><Style.Triggers><DataTrigger Binding="{Binding HasReceivedStatus}" Value="True"><Setter Property="Cursor" Value="Hand"/><Setter Property="ToolTip" Value="Voir les statuts de ce contact"/></DataTrigger></Style.Triggers></Style></Grid.Style>
                                     <Border CornerRadius="19" Background="#263D5B" BorderBrush="#42658F" BorderThickness="1">
                                         <TextBlock Text="{Binding AvatarInitials}" FontSize="11" FontWeight="Bold" Foreground="#E6EEF9" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
@@ -261,6 +262,9 @@
                                         <Image.Clip><EllipseGeometry Center="19,19" RadiusX="19" RadiusY="19"/></Image.Clip>
                                         <Image.Style><Style TargetType="Image"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding AvatarPath}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding AvatarPath}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Image.Style>
                                     </Image>
+                                    <Border CornerRadius="21" BorderBrush="#55D6A5" BorderThickness="2" Margin="-2">
+                                        <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasReceivedStatus}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                    </Border>
                                 </Grid>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="9,0,4,0">
                                     <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold" Foreground="#EDF3FC" TextTrimming="CharacterEllipsis" />
@@ -275,7 +279,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                     <ListBox x:Name="ContactsList" ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedAddressBookContact, Mode=TwoWay}" SelectionChanged="ContactList_SelectionChanged"
-                             Background="Transparent" BorderThickness="0" Padding="0" Visibility="Collapsed"
+                             Background="Transparent" BorderThickness="0" Padding="0" Margin="0,62,0,0" Visibility="Collapsed"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                              automation:AutomationProperties.AutomationId="ContactsList">
@@ -305,7 +309,8 @@
                             <DataTemplate>
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="44"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <Grid Width="38" Height="38" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="ContactAvatar_Click" ToolTip="Voir les statuts de ce contact">
+                                    <Grid Width="38" Height="38" VerticalAlignment="Center" MouseLeftButtonUp="ContactAvatar_Click">
+                                        <Grid.Style><Style TargetType="Grid"><Setter Property="Cursor" Value="Arrow"/><Setter Property="ToolTip" Value="Aucun statut disponible"/><Style.Triggers><DataTrigger Binding="{Binding HasReceivedStatus}" Value="True"><Setter Property="Cursor" Value="Hand"/><Setter Property="ToolTip" Value="Voir les statuts de ce contact"/></DataTrigger></Style.Triggers></Style></Grid.Style>
                                         <Border CornerRadius="19" Background="#263D5B" BorderBrush="#42658F" BorderThickness="1">
                                             <TextBlock Text="{Binding AvatarInitials}" FontSize="11" FontWeight="Bold" Foreground="#E6EEF9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
@@ -314,6 +319,9 @@
                                             <Image.Clip><EllipseGeometry Center="19,19" RadiusX="19" RadiusY="19"/></Image.Clip>
                                             <Image.Style><Style TargetType="Image"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding AvatarPath}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding AvatarPath}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Image.Style>
                                         </Image>
+                                        <Border CornerRadius="21" BorderBrush="#55D6A5" BorderThickness="2" Margin="-2">
+                                            <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasReceivedStatus}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                        </Border>
                                     </Grid>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="9,0,4,0">
                                         <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold" Foreground="#EDF3FC" TextTrimming="CharacterEllipsis"/>
@@ -326,6 +334,40 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <Border x:Name="SelfStatusCard" VerticalAlignment="Top" Margin="0,0,0,8" Padding="8,7"
+                            Background="#B50A0D14" BorderBrush="#263A55" BorderThickness="1" CornerRadius="12"
+                            Visibility="Collapsed" MouseLeftButtonUp="OpenSelfConversation_Click"
+                            Cursor="Hand" ToolTip="Ouvrir la conversation avec vous-même">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="44"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid Width="38" Height="38" VerticalAlignment="Center" Cursor="Hand"
+                                  MouseLeftButtonUp="ContactAvatar_Click" ToolTip="Voir mes statuts">
+                                <Border CornerRadius="19" Background="#263D5B" BorderBrush="#42658F" BorderThickness="1">
+                                    <TextBlock Text="Vous" FontSize="9" FontWeight="Bold" Foreground="#E6EEF9"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Image Source="{Binding AvatarBytes, Converter={StaticResource ByteArrayToImageSourceConverter}}"
+                                       Stretch="UniformToFill">
+                                    <Image.Clip><EllipseGeometry Center="19,19" RadiusX="17" RadiusY="17"/></Image.Clip>
+                                    <Image.Style>
+                                        <Style TargetType="Image">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AvatarBytes}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Grid>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="9,0,4,0">
+                                <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#EDF3FC" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="Cliquer pour discuter · (vous)" FontSize="10" Foreground="#9AA7BA"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                     <Border x:Name="ConversationEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="17" CornerRadius="16" Background="#142238" BorderBrush="#263A55" BorderThickness="1" MaxWidth="240">
                         <Border.Style>
                             <Style TargetType="Border">
@@ -652,4 +694,3 @@
         </Border>
     </Grid>
 </Window>
-

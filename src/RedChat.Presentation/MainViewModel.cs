@@ -58,6 +58,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 ?? (status.OwnerPeerId.Length > 8 ? status.OwnerPeerId[..8] : status.OwnerPeerId);
             ReceivedStatuses.Add(new ReceivedStatusViewModel(status, name));
         }
+        ReceivedStatuses.CollectionChanged += OnReceivedStatusesCollectionChanged;
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, SetError, () => !string.IsNullOrWhiteSpace(ConnectEndpoint));
         // Créé avant tout accès à SelectedConversation : le setter de la sélection rafraîchit l'état d'appel.
         Call = new CallViewModel(_node.Calls, _dispatcher, GetSelectedPrivatePeerId);
@@ -74,6 +75,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _persistence.SaveRecovered += OnSaveRecovered;
         RefreshConversations();
         RefreshContacts();
+        RefreshStatusAvailability();
     }
 
     /// <summary>Identité cryptographique locale utilisée pour signer logiquement les statuts via le canal authentifié.</summary>
@@ -346,6 +348,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedConversation = _conversationById[info.Id];
     }
 
+    /// <summary>Ouvre la conversation locale de notes personnelles.</summary>
+    public void OpenSelfConversation()
+    {
+        ConversationInfo info = _node.Chat.EnsureSelfConversation();
+        RefreshConversations();
+        SelectedConversation = _conversationById[info.Id];
+    }
+
     /// <summary>Rafraîchit la liste à partir des instantanés thread-safe du service.</summary>
     public void RefreshConversations()
     {
@@ -366,7 +376,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!_conversationById.TryGetValue(info.Id, out ConversationViewModel? vm))
             {
-                vm = new ConversationViewModel(info, _node.Chat, _node.Contacts, _dispatcher);
+                vm = new ConversationViewModel(info, _node.Chat, _node.Contacts, _dispatcher, selfPeerId: _node.PeerId);
                 _conversationById.Add(info.Id, vm);
             }
             else
@@ -392,6 +402,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             SelectedConversation = null;
         }
+        RefreshStatusAvailability();
     }
 
     /// <summary>PeerId de la conversation privée affichée, ou null pour un groupe ou en l'absence de sélection.</summary>
@@ -407,6 +418,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         _disposed = true;
+        ReceivedStatuses.CollectionChanged -= OnReceivedStatusesCollectionChanged;
         _node.Chat.Changed -= OnChatChanged;
         _node.Attachments.FileReceived -= OnAttachmentReceived;
         _node.Attachments.ProgressChanged -= OnAttachmentProgressChanged;
@@ -447,6 +459,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedAddressBookContact = selectedPeerId is null
             ? null
             : Contacts.FirstOrDefault(c => c.PeerId == selectedPeerId);
+        RefreshStatusAvailability();
+    }
+
+    private void OnReceivedStatusesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        RefreshStatusAvailability();
+
+    private void RefreshStatusAvailability()
+    {
+        HashSet<string> owners = ReceivedStatuses
+            .Where(status => status.ExpiresAt > DateTimeOffset.UtcNow)
+            .Select(status => status.OwnerPeerId)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (ContactViewModel contact in Contacts)
+        {
+            contact.SetHasReceivedStatus(owners.Contains(contact.PeerId));
+        }
+        foreach (ConversationViewModel conversation in _conversationById.Values)
+        {
+            conversation.SetHasReceivedStatus(!conversation.Info.IsGroup && owners.Contains(conversation.Info.Id));
+        }
     }
 
     private async Task ConnectAsync(CancellationToken cancellationToken)

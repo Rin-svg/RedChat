@@ -174,6 +174,30 @@ public class ChatServiceTests
     }
 
     [Fact]
+    public void SelfConversation_StoresMessagesLocallyWithoutNetworkDelivery()
+    {
+        ChatService chat = NewService(A);
+
+        ConversationInfo first = chat.EnsureSelfConversation();
+        ConversationInfo second = chat.EnsureSelfConversation();
+        ChatMessage message = chat.SendText(A, "Note personnelle");
+
+        Assert.Equal(A, first.Id);
+        Assert.True(first.IsSelfConversation);
+        Assert.Equal(first, second);
+        Assert.Equal(A, message.ConversationId);
+        Assert.True(message.IsOutgoing);
+        Assert.Empty(message.Receipts);
+        Assert.Empty(chat.GetMessages(B));
+        Assert.Single(chat.GetMessages(A));
+        Assert.Equal(0, chat.PendingCount(A));
+
+        ChatService restored = NewService(A);
+        restored.ImportState(chat.ExportState());
+        Assert.Equal("Note personnelle", Assert.Single(restored.GetMessages(A)).Text);
+    }
+
+    [Fact]
     public void SendText_IsReceived_AndAcknowledgedAsDelivered()
     {
         var (net, a, b) = Pair();

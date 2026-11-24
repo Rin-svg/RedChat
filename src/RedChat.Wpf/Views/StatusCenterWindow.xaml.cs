@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using MessageBox = System.Windows.MessageBox;
@@ -10,6 +12,7 @@ using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using RedChat.Core;
 using RedChat.Presentation;
 using RedChat.Infrastructure;
+using WpfProgressBar = System.Windows.Controls.ProgressBar;
 
 namespace RedChat.Wpf.Views;
 
@@ -17,13 +20,23 @@ namespace RedChat.Wpf.Views;
 public partial class StatusCenterWindow : Window
 {
     private static readonly TimeSpan Lifetime = TimeSpan.FromHours(24);
+    private static readonly TimeSpan PhotoDisplayDuration = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan UnknownVideoDisplayDuration = TimeSpan.FromSeconds(30);
     private const int MaxMediaBytes = 20 * 1024 * 1024;
     private readonly string _storePath;
     private readonly MainViewModel _viewModel;
     private readonly string? _ownerPeerId;
+    private readonly bool _isOwnStatusViewer;
     private readonly ObservableCollection<LocalStatusItem> _statuses = new();
     private readonly ObservableCollection<ReceivedStatusViewModel> _contactStatuses = new();
     private readonly DispatcherTimer _expiryTimer;
+    private readonly DispatcherTimer _viewerTimer;
+    private readonly HashSet<string> _viewedStatusIds = new(StringComparer.Ordinal);
+    private ReceivedStatusViewModel[] _viewerStatuses = Array.Empty<ReceivedStatusViewModel>();
+    private WpfProgressBar[] _progressBars = Array.Empty<WpfProgressBar>();
+    private Stopwatch? _segmentClock;
+    private TimeSpan _segmentDuration;
+    private string? _currentVideoPath;
     private byte[]? _selectedMedia;
     private string? _selectedMediaName;
     private string? _selectedMediaType;
@@ -35,7 +48,10 @@ public partial class StatusCenterWindow : Window
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _ownerPeerId = ownerPeerId;
+        _isOwnStatusViewer = ownerPeerId is not null && ownerPeerId == viewModel.LocalPeerId;
         InitializeComponent();
+        _viewerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _viewerTimer.Tick += OnViewerTimerTick;
         string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RedChat", "Statuses");
         Directory.CreateDirectory(directory);
         _storePath = Path.Combine(directory, "local-statuses.json");
@@ -44,23 +60,43 @@ public partial class StatusCenterWindow : Window
         AudienceList.ItemsSource = _viewModel.Contacts;
         if (_ownerPeerId is not null)
         {
-            ContactViewModel? contact = _viewModel.Contacts.FirstOrDefault(item => item.PeerId == _ownerPeerId);
-            string contactName = contact?.DisplayLabel ?? "ce contact";
-            Title = $"RedChat — Statuts de {contactName}";
-            ReceivedStatusesHeader.Text = $"Statuts de {contactName}";
-            foreach (ReceivedStatusViewModel status in _viewModel.ReceivedStatuses.Where(item => item.OwnerPeerId == _ownerPeerId).OrderByDescending(item => item.CreatedAt))
+            ContactViewModel? contact = _isOwnStatusViewer
+                ? null
+                : _viewModel.Contacts.FirstOrDefault(item => item.PeerId == _ownerPeerId);
+            string contactName = _isOwnStatusViewer ? "vous" : contact?.DisplayLabel ?? "ce contact";
+            Title = _isOwnStatusViewer ? "RedChat — Mes statuts" : $"RedChat — Statuts de {contactName}";
+            Width = 440;
+            Height = 720;
+            MinWidth = 360;
+            MinHeight = 600;
+            ReceivedStatusesHeader.Text = _isOwnStatusViewer ? "Mes statuts" : $"Statuts de {contactName}";
+            if (!_isOwnStatusViewer)
             {
-                _contactStatuses.Add(status);
+                foreach (ReceivedStatusViewModel status in _viewModel.ReceivedStatuses.Where(item => item.OwnerPeerId == _ownerPeerId).OrderByDescending(item => item.CreatedAt))
+                {
+                    _contactStatuses.Add(status);
+                }
             }
             PublishPanel.Visibility = Visibility.Collapsed;
             LocalStatusesPanel.Visibility = Visibility.Collapsed;
             FooterNotice.Visibility = Visibility.Collapsed;
             Grid.SetRow(ReceivedStatusesPanel, 0);
             Grid.SetRowSpan(ReceivedStatusesPanel, 2);
-            _viewModel.ReceivedStatuses.CollectionChanged += OnReceivedStatusesChanged;
+            if (!_isOwnStatusViewer)
+            {
+                _viewModel.ReceivedStatuses.CollectionChanged += OnReceivedStatusesChanged;
+            }
         }
         UpdateReceivedEmptyState();
+        if (_ownerPeerId is not null)
+        {
+            RefreshStatusViewer();
+        }
         LoadStatuses();
+        if (_ownerPeerId is not null)
+        {
+            RefreshStatusViewer();
+        }
         _viewModel.LocalStatusViewed += OnLocalStatusViewed;
         _expiryTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _expiryTimer.Tick += OnExpiryTimerTick;
@@ -68,8 +104,13 @@ public partial class StatusCenterWindow : Window
         Closed += (_, _) =>
         {
             _expiryTimer.Stop();
+            _viewerTimer.Stop();
+            ClearCurrentVideo();
             _viewModel.LocalStatusViewed -= OnLocalStatusViewed;
-            _viewModel.ReceivedStatuses.CollectionChanged -= OnReceivedStatusesChanged;
+            if (!_isOwnStatusViewer)
+            {
+                _viewModel.ReceivedStatuses.CollectionChanged -= OnReceivedStatusesChanged;
+            }
         };
     }
 
@@ -88,12 +129,239 @@ public partial class StatusCenterWindow : Window
             _contactStatuses.Add(status);
         }
         UpdateReceivedEmptyState();
+        RefreshStatusViewer();
     }
 
     private void UpdateReceivedEmptyState()
     {
-        int count = _ownerPeerId is null ? _viewModel.ReceivedStatuses.Count : _contactStatuses.Count;
+        int count = _ownerPeerId is null
+            ? _viewModel.ReceivedStatuses.Count
+            : _isOwnStatusViewer ? _statuses.Count : _contactStatuses.Count;
+        if (_isOwnStatusViewer)
+        {
+            EmptyReceivedNotice.Text = "Tu n'as publié aucun statut pour le moment.";
+        }
         EmptyReceivedNotice.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        StatusViewer.Visibility = _ownerPeerId is not null && count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ReceivedStatusesList.Visibility = _ownerPeerId is null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void RefreshStatusViewer()
+    {
+        if (_ownerPeerId is null)
+        {
+            return;
+        }
+
+        _viewerStatuses = _isOwnStatusViewer
+            ? _statuses.Where(item => item.ExpiresAt > DateTimeOffset.UtcNow)
+                .OrderBy(item => item.CreatedAt)
+                .Select(CreateOwnStatusViewModel)
+                .ToArray()
+            : _contactStatuses.OrderBy(item => item.CreatedAt).ToArray();
+        UpdateReceivedEmptyState();
+        ProgressSegmentsPanel.Children.Clear();
+        ProgressSegmentsPanel.ColumnDefinitions.Clear();
+        _progressBars = new WpfProgressBar[_viewerStatuses.Length];
+        for (int i = 0; i < _progressBars.Length; i++)
+        {
+            ProgressSegmentsPanel.ColumnDefinitions.Add(new ColumnDefinition());
+            WpfProgressBar bar = new()
+            {
+                Minimum = 0,
+                Maximum = 100,
+                Height = 3,
+                Margin = new Thickness(0, 0, i == _progressBars.Length - 1 ? 0 : 4, 0),
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(92, 92, 92)),
+                Foreground = System.Windows.Media.Brushes.White,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+            };
+            Grid.SetColumn(bar, i);
+            ProgressSegmentsPanel.Children.Add(bar);
+            _progressBars[i] = bar;
+        }
+
+        if (_viewerStatuses.Length == 0)
+        {
+            _viewerTimer.Stop();
+            ClearCurrentVideo();
+            return;
+        }
+
+        ShowStatus(0);
+    }
+
+    private void ShowStatus(int index)
+    {
+        if (index < 0 || index >= _viewerStatuses.Length)
+        {
+            if (index >= _viewerStatuses.Length)
+            {
+                Close();
+            }
+            return;
+        }
+
+        _viewerTimer.Stop();
+        ClearCurrentVideo();
+        ReceivedStatusViewModel status = _viewerStatuses[index];
+        StatusViewer.DataContext = status;
+        ViewerSender.Text = status.SenderName;
+        ViewerTime.Text = $"{status.CreatedAt.ToLocalTime():dd/MM à HH:mm} · {index + 1}/{_viewerStatuses.Length}";
+        for (int i = 0; i < _progressBars.Length; i++)
+        {
+            _progressBars[i].Value = i < index ? 100 : 0;
+        }
+
+        if (!_isOwnStatusViewer && _viewedStatusIds.Add(status.Id)
+            && !_viewModel.MarkReceivedStatusViewed(status.OwnerPeerId, status.Id))
+        {
+            MessageBox.Show("Le reçu de consultation n'a pas pu être envoyé : ce contact n'est pas connecté.",
+                "RedChat — Statuts", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        if (status.Status.ContentKind == StatusContentKind.Video && status.MediaBytes is { Length: > 0 } bytes)
+        {
+            ViewerImage.Visibility = Visibility.Collapsed;
+            ViewerVideo.Visibility = Visibility.Visible;
+            string extension = bytes.Length >= 4 && bytes[0] == 0x1A && bytes[1] == 0x45 && bytes[2] == 0xDF && bytes[3] == 0xA3
+                ? ".webm"
+                : ".mp4";
+            _currentVideoPath = Path.Combine(Path.GetTempPath(), $"redchat-status-{Guid.NewGuid():N}{extension}");
+            try
+            {
+                File.WriteAllBytes(_currentVideoPath, bytes);
+                ViewerVideo.Source = new Uri(_currentVideoPath, UriKind.Absolute);
+                ViewerVideo.Position = TimeSpan.Zero;
+                ViewerVideo.Play();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                ViewerVideo.Visibility = Visibility.Collapsed;
+                ClearCurrentVideo();
+                MessageBox.Show($"Impossible de lire cette vidéo : {ex.Message}", "RedChat — Statuts", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowStatus(index + 1);
+            }
+        }
+        else
+        {
+            ViewerVideo.Visibility = Visibility.Collapsed;
+            ViewerImage.Visibility = status.MediaBytes is null ? Visibility.Collapsed : Visibility.Visible;
+            StartStatusTimer(PhotoDisplayDuration);
+        }
+    }
+
+    private void StartStatusTimer(TimeSpan duration)
+    {
+        _segmentDuration = duration > TimeSpan.Zero ? duration : UnknownVideoDisplayDuration;
+        _segmentClock = Stopwatch.StartNew();
+        _viewerTimer.Start();
+    }
+
+    private void OnViewerTimerTick(object? sender, EventArgs e)
+    {
+        if (_segmentClock is null || _progressBars.Length == 0)
+        {
+            return;
+        }
+
+        double progress = Math.Clamp(_segmentClock.Elapsed.TotalMilliseconds / _segmentDuration.TotalMilliseconds, 0, 1);
+        int index = Array.FindIndex(_viewerStatuses, status => ReferenceEquals(status, StatusViewer.DataContext));
+        if (index >= 0)
+        {
+            _progressBars[index].Value = progress * 100;
+        }
+        if (progress >= 1)
+        {
+            ShowStatus(index + 1);
+        }
+    }
+
+    private void ViewerVideo_MediaOpened(object sender, RoutedEventArgs e)
+    {
+        TimeSpan duration = ViewerVideo.NaturalDuration.HasTimeSpan
+            ? ViewerVideo.NaturalDuration.TimeSpan
+            : UnknownVideoDisplayDuration;
+        StartStatusTimer(duration);
+    }
+
+    private void ViewerVideo_MediaEnded(object sender, RoutedEventArgs e)
+    {
+        int index = Array.FindIndex(_viewerStatuses, status => ReferenceEquals(status, StatusViewer.DataContext));
+        ShowStatus(index + 1);
+    }
+
+    private void ViewerVideo_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+    {
+        ViewerVideo.Visibility = Visibility.Collapsed;
+        ClearCurrentVideo();
+        MessageBox.Show($"Impossible de lire cette vidéo : {e.ErrorException.Message}", "RedChat — Statuts", MessageBoxButton.OK, MessageBoxImage.Warning);
+        int index = Array.FindIndex(_viewerStatuses, status => ReferenceEquals(status, StatusViewer.DataContext));
+        ShowStatus(index + 1);
+    }
+
+    private void ClearCurrentVideo()
+    {
+        ViewerVideo.Stop();
+        ViewerVideo.Close();
+        ViewerVideo.Source = null;
+        if (_currentVideoPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(_currentVideoPath);
+            _currentVideoPath = null;
+        }
+        catch (FileNotFoundException)
+        {
+            _currentVideoPath = null;
+        }
+        catch (IOException)
+        {
+            MessageBox.Show("Le fichier temporaire de lecture vidéo n'a pas pu être supprimé.", "RedChat — Statuts", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MessageBox.Show("Accès refusé lors de la suppression du fichier temporaire vidéo.", "RedChat — Statuts", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void PreviousStatus_Click(object sender, RoutedEventArgs e)
+    {
+        int index = Array.FindIndex(_viewerStatuses, status => ReferenceEquals(status, StatusViewer.DataContext));
+        ShowStatus(Math.Max(0, index - 1));
+    }
+
+    private void NextStatus_Click(object sender, RoutedEventArgs e)
+    {
+        int index = Array.FindIndex(_viewerStatuses, status => ReferenceEquals(status, StatusViewer.DataContext));
+        ShowStatus(index + 1);
+    }
+
+    private void CloseViewer_Click(object sender, RoutedEventArgs e) => Close();
+
+    private ReceivedStatusViewModel CreateOwnStatusViewModel(LocalStatusItem item)
+    {
+        StatusContentKind contentKind = item.ContentType switch
+        {
+            "Photo PNG" or "Photo JPEG" => StatusContentKind.Photo,
+            "Vidéo MP4" or "Vidéo WebM" => StatusContentKind.Video,
+            _ => StatusContentKind.Text,
+        };
+        EphemeralStatus status = new()
+        {
+            Id = item.Id,
+            OwnerPeerId = _viewModel.LocalPeerId,
+            ContentKind = contentKind,
+            Text = item.Text,
+            MediaBytes = item.MediaBytes,
+            CreatedAt = item.CreatedAt,
+            ExpiresAt = item.ExpiresAt,
+        };
+        return new ReceivedStatusViewModel(status, "Vous");
     }
 
     private void OnExpiryTimerTick(object? sender, EventArgs e)
@@ -111,6 +379,10 @@ public partial class StatusCenterWindow : Window
         if (localChanged)
         {
             SaveStatuses();
+            if (_isOwnStatusViewer)
+            {
+                RefreshStatusViewer();
+            }
         }
     }
 
