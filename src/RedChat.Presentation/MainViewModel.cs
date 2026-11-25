@@ -25,6 +25,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private ContactViewModel? _selectedContact;
     private ContactViewModel? _selectedAddressBookContact;
     private PersonalProfile _selfProfile;
+    private bool _isLanScanActive;
     private bool _disposed;
 
     /// <summary>Assemble le modèle racine après le chargement du profil et avant le démarrage du nœud.</summary>
@@ -40,6 +41,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Conversations = new ObservableCollection<ConversationViewModel>();
         Contacts = new ObservableCollection<ContactViewModel>();
         DiscoveredPeers = new ObservableCollection<DiscoveredPeerViewModel>();
+        DiscoveredPeers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscoveredPeers));
         ReceivedStatuses = new ObservableCollection<ReceivedStatusViewModel>();
         VoiceMessages = new ObservableCollection<VoiceMessageViewModel>();
         ReceivedAttachments = new ObservableCollection<AttachmentReceivedEventArgs>();
@@ -75,7 +77,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _node.Statuses.StatusDeleted += OnStatusDeleted;
         _node.Transport.PeerConnected += OnStatusPeerConnected;
         _node.Contacts.Changed += OnContactsChanged;
-        _node.PeerDiscovered += OnPeerDiscovered;
         _persistence.SaveFailed += OnSaveFailed;
         _persistence.SaveRecovered += OnSaveRecovered;
         RefreshConversations();
@@ -154,6 +155,79 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Pairs récemment découverts par UDP ; leur identité reste non authentifiée avant le handshake.</summary>
     public ObservableCollection<DiscoveredPeerViewModel> DiscoveredPeers { get; }
+
+    /// <summary>Indique si le scan a déjà trouvé au moins un appareil.</summary>
+    public bool HasDiscoveredPeers => DiscoveredPeers.Count > 0;
+
+    /// <summary>État de l’écoute des annonces pour l’interface de scan LAN.</summary>
+    public bool IsLanScanActive
+    {
+        get => _isLanScanActive;
+        private set => SetProperty(ref _isLanScanActive, value);
+    }
+
+    /// <summary>Une annonce a été ajoutée ou actualisée pendant un scan actif.</summary>
+    public event EventHandler<LanScanPeerEventArgs>? LanPeerDiscovered;
+
+    /// <summary>
+    /// Commence à recueillir les annonces UDP déjà gérées par le nœud. La découverte réseau et la connexion automatique
+    /// existantes restent actives indépendamment de cette écoute destinée à l’interface.
+    /// </summary>
+    public void StartLanScan()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsLanScanActive)
+        {
+            return;
+        }
+
+        DiscoveredPeers.Clear();
+        IsLanScanActive = true;
+        _node.PeerDiscovered += OnPeerDiscovered;
+    }
+
+    /// <summary>Arrête d’afficher les annonces dans l’interface sans interrompre la découverte utilisée par le nœud.</summary>
+    public void StopLanScan()
+    {
+        if (!IsLanScanActive)
+        {
+            return;
+        }
+
+        _node.PeerDiscovered -= OnPeerDiscovered;
+        IsLanScanActive = false;
+    }
+
+    /// <summary>Connecte à un résultat du scan et retourne le PeerId authentifié par le handshake.</summary>
+    public async Task<string> ConnectDiscoveredPeerAsync(string peerId, CancellationToken cancellationToken = default)
+    {
+        DiscoveredPeerViewModel? discovered = DiscoveredPeers.FirstOrDefault(peer => peer.PeerId == peerId);
+        if (discovered is null || !InputValidator.TryParseLanEndpoint(discovered.Endpoint, out System.Net.IPEndPoint? endpoint) || endpoint is null)
+        {
+            throw new ArgumentException("Ce pair ne figure pas parmi les résultats LAN valides.", nameof(peerId));
+        }
+
+        try
+        {
+            string authenticatedPeerId = await _node.ConnectDiscoveredAsync(peerId, endpoint, cancellationToken).ConfigureAwait(true);
+            ConnectionNotice = $"Connexion authentifiée avec {authenticatedPeerId[..8]}.";
+            Error = null;
+            ConversationInfo conversation = _node.Chat.EnsureDirectConversation(authenticatedPeerId);
+            RefreshConversations();
+            SelectedConversation = _conversationById[conversation.Id];
+            return authenticatedPeerId;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            ConnectionNotice = "Connexion annulée.";
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Error = exception.Message;
+            throw;
+        }
+    }
 
     /// <summary>Statuts reçus des contacts, conservés localement jusqu'à leur expiration ou leur retrait.</summary>
     public ObservableCollection<ReceivedStatusViewModel> ReceivedStatuses { get; }
@@ -462,6 +536,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         _disposed = true;
+        _node.PeerDiscovered -= OnPeerDiscovered;
+        IsLanScanActive = false;
         ReceivedStatuses.CollectionChanged -= OnReceivedStatusesCollectionChanged;
         _node.Chat.Changed -= OnChatChanged;
         _node.Attachments.FileReceived -= OnAttachmentReceived;
@@ -472,7 +548,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _node.Statuses.StatusDeleted -= OnStatusDeleted;
         _node.Transport.PeerConnected -= OnStatusPeerConnected;
         _node.Contacts.Changed -= OnContactsChanged;
-        _node.PeerDiscovered -= OnPeerDiscovered;
         _persistence.SaveFailed -= OnSaveFailed;
         _persistence.SaveRecovered -= OnSaveRecovered;
         ConnectCommand.Dispose();
@@ -748,17 +823,40 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnPeerDiscovered(object? sender, PeerDiscoveredEventArgs e) => _dispatcher.Post(() =>
     {
-        if (_disposed || DiscoveredPeers.Any(p => p.PeerId == e.PeerId))
+        if (_disposed || !IsLanScanActive)
         {
             return;
         }
 
-        if (DiscoveredPeers.Count >= MaxDiscoveredPeersShown)
+        int existingIndex = -1;
+        for (int index = 0; index < DiscoveredPeers.Count; index++)
         {
-            DiscoveredPeers.RemoveAt(0);
+            if (DiscoveredPeers[index].PeerId == e.PeerId)
+            {
+                existingIndex = index;
+                break;
+            }
         }
 
-        DiscoveredPeers.Add(new DiscoveredPeerViewModel(e.PeerId, e.Endpoint.ToString()));
+        DiscoveredPeerViewModel updated = new(e.PeerId, e.Endpoint.ToString())
+        {
+            LastSeenAt = DateTimeOffset.UtcNow,
+        };
+        if (existingIndex >= 0)
+        {
+            DiscoveredPeers[existingIndex] = updated;
+        }
+        else
+        {
+            if (DiscoveredPeers.Count >= MaxDiscoveredPeersShown)
+            {
+                DiscoveredPeers.RemoveAt(0);
+            }
+
+            DiscoveredPeers.Add(updated);
+        }
+
+        LanPeerDiscovered?.Invoke(this, new LanScanPeerEventArgs(updated, existingIndex >= 0));
     });
 
     private void OnSaveFailed(object? sender, SaveFailedEventArgs e) => _dispatcher.Post(() =>
@@ -783,7 +881,28 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 /// <summary>Annonce de découverte UDP, en attente d'une authentification TCP.</summary>
 /// <param name="PeerId">Identifiant annoncé, non authentifié à ce stade.</param>
 /// <param name="Endpoint">Adresse locale IP:port annoncée.</param>
-public sealed record DiscoveredPeerViewModel(string PeerId, string Endpoint);
+public sealed record DiscoveredPeerViewModel(string PeerId, string Endpoint)
+{
+    /// <summary>Heure de la dernière annonce reçue.</summary>
+    public DateTimeOffset LastSeenAt { get; init; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Résultat d’une annonce nouvelle ou actualisée pendant un scan.</summary>
+public sealed class LanScanPeerEventArgs : EventArgs
+{
+    /// <summary>Crée les données de l’événement.</summary>
+    public LanScanPeerEventArgs(DiscoveredPeerViewModel peer, bool isUpdate)
+    {
+        Peer = peer ?? throw new ArgumentNullException(nameof(peer));
+        IsUpdate = isUpdate;
+    }
+
+    /// <summary>Annonce non authentifiée ; son PeerId ne devient fiable qu’après un handshake réussi.</summary>
+    public DiscoveredPeerViewModel Peer { get; }
+
+    /// <summary>Vrai lorsque cette annonce actualise un résultat déjà présent.</summary>
+    public bool IsUpdate { get; }
+}
 
 /// <summary>Informations non sensibles nécessaires à l’affichage d’une notification de nouveau message.</summary>
 /// <remarks>Contient l’identifiant de la conversation à ouvrir après un clic et son nom local (contact ou groupe).</remarks>

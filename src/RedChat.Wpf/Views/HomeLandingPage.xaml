@@ -1,0 +1,340 @@
+<UserControl x:Class="RedChat.Wpf.Views.HomeLandingPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#080D16">
+    <UserControl.Resources>
+        <LinearGradientBrush x:Key="LandingAccent" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FF7187" Offset="0" />
+            <GradientStop Color="#F21D45" Offset="0.48" />
+            <GradientStop Color="#A90E2C" Offset="1" />
+        </LinearGradientBrush>
+        <Style x:Key="LandingButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#F7F8FC" />
+            <Setter Property="Background" Value="#18253A" />
+            <Setter Property="BorderBrush" Value="#34445F" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="18,12" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.86" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="FeatureCard" TargetType="Border">
+            <Setter Property="Background" Value="#A8142032" />
+            <Setter Property="BorderBrush" Value="#283750" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="17,15" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="36,24,36,26" Background="#080D16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="58" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="38" Height="38" CornerRadius="13" Background="{StaticResource LandingAccent}">
+                    <TextBlock Text="R" FontSize="23" FontWeight="Black" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel VerticalAlignment="Center" Margin="11,0,0,0">
+                    <TextBlock Text="RedChat" FontSize="18" FontWeight="Bold" Foreground="#F6F7FB" />
+                    <TextBlock Text="MESSAGERIE PRIVÉE" FontSize="8" FontWeight="Bold"
+                               Foreground="#8293AE" />
+                </StackPanel>
+            </StackPanel>
+
+            <Border Grid.Column="1" CornerRadius="16" Padding="13,8" Margin="0,0,12,0"
+                    Background="#9B111C2C" BorderBrush="#2C3B54" BorderThickness="1"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="7" Height="7" Fill="#54D6A3" Margin="0,0,8,0"
+                             VerticalAlignment="Center" />
+                    <TextBlock Text="RÉSEAU LOCAL SÉCURISÉ" FontSize="9" FontWeight="SemiBold"
+                               Foreground="#C3CEE0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <Button Grid.Column="2" Content="Ouvrir RedChat  →" Style="{StaticResource LandingButton}"
+                    Click="Enter_Click" VerticalAlignment="Center" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,5,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.92*" />
+                <ColumnDefinition Width="1.08*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="12,0,0,16">
+                <Border Background="#301C2C42" BorderBrush="#5533445F" BorderThickness="1"
+                        CornerRadius="15" Padding="12,7" HorizontalAlignment="Left" Margin="0,0,0,24">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="✦" Foreground="#FF7087" FontSize="12" Margin="0,0,8,0" />
+                        <TextBlock Text="VOS ÉCHANGES, EN TOUTE LIBERTÉ" FontSize="9"
+                                   FontWeight="Bold" Foreground="#C8D1E0" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock FontSize="48" FontWeight="Light" LineHeight="57" Foreground="#F5F7FB">
+                    <Run Text="Restez proches," />
+                    <LineBreak />
+                    <Run Text="où que vous " />
+                    <Run Text="soyez." FontWeight="Bold" Foreground="#FF536F" />
+                </TextBlock>
+                <TextBlock Text="Des conversations simples, des appels en direct et vos moments partagés — dans un espace privé qui vous appartient."
+                           FontSize="14" LineHeight="23" Foreground="#A5B2C7" MaxWidth="485"
+                           Margin="0,18,0,25" />
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Accéder à mes discussions  →" Style="{StaticResource LandingButton}"
+                            Background="{StaticResource LandingAccent}" BorderBrush="#F53A5B"
+                            Padding="20,14" Click="Enter_Click" />
+                    <Button Style="{StaticResource LandingButton}" Background="#101A2A"
+                            BorderBrush="#293A53" Padding="15,10" Margin="12,0,0,0"
+                            Click="ScanToggle_Click">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⌕" Foreground="#FF6A82" FontSize="19" Margin="0,0,8,0" />
+                            <TextBlock x:Name="ScanButtonLabel" Text="Scanner le réseau"
+                                       Foreground="#C0CADD" FontSize="10" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,28,0,0">
+                    <TextBlock Text="●" Foreground="#54D6A3" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="Vos messages restent chiffrés entre vos appareils"
+                               Foreground="#8293AE" FontSize="10" Margin="8,0,0,0"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+
+            <Grid Grid.Column="1" MinHeight="390" Margin="0,0,0,0">
+                <Ellipse Width="355" Height="355" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         IsHitTestVisible="False">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#66561735" Offset="0" />
+                            <GradientStop Color="#272E152A" Offset="0.64" />
+                            <GradientStop Color="#00202C42" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Viewport3D x:Name="HeroScene" Width="440" Height="410"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            IsHitTestVisible="False" />
+
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,35,8,0"
+                        Background="#E8172234" BorderBrush="#4B50627C" BorderThickness="1"
+                        CornerRadius="14" Padding="12,9" RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="5" />
+                    </Border.RenderTransform>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="27" Height="27" CornerRadius="10" Background="#26394F">
+                            <TextBlock Text="⌁" Foreground="#FF7187" FontSize="17"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Margin="9,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="CONNEXION PRIVÉE" FontSize="8" FontWeight="Bold"
+                                       Foreground="#E5E9F1" />
+                            <TextBlock Text="Directe entre vos appareils" FontSize="8"
+                                       Foreground="#9EACC1" Margin="0,3,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,12,0,0"
+                        Width="235" Background="#ED141F30" BorderBrush="#4B42516C" BorderThickness="1"
+                        CornerRadius="17" Padding="14" RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="-5" />
+                    </Border.RenderTransform>
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="9" Opacity="0.48" />
+                    </Border.Effect>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="30" Height="30" CornerRadius="15" Background="#F21D45">
+                                <TextBlock Text="M" Foreground="White" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Margin="9,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Maya" FontSize="10" FontWeight="Bold" Foreground="#F2F4F8" />
+                                <TextBlock Text="en ligne" FontSize="8" Foreground="#63D7A6" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <TextBlock Text="• • •" FontSize="10" Foreground="#8293AE"
+                                       HorizontalAlignment="Right" Margin="65,1,0,0" />
+                        </StackPanel>
+                        <Border Background="#202E43" CornerRadius="11" Padding="11,9" Margin="0,12,10,0">
+                            <TextBlock Text="On se retrouve à 18h ? 😊" FontSize="10" Foreground="#D9E1ED" />
+                        </Border>
+                        <TextBlock Text="16:42  ·  ✓✓" FontSize="8" Foreground="#8293AE"
+                                   HorizontalAlignment="Right" Margin="0,6,2,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,14,32"
+                        Background="#E8172234" BorderBrush="#4B50627C" BorderThickness="1"
+                        CornerRadius="15" Padding="13,10" RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="4" />
+                    </Border.RenderTransform>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="30" Height="30" CornerRadius="10" Background="#472037">
+                            <TextBlock Text="◉" Foreground="#FF7187" FontSize="15"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Margin="9,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Vos moments" FontSize="9" FontWeight="Bold" Foreground="#E7EAF1" />
+                            <TextBlock Text="Statuts éphémères" FontSize="8" Foreground="#9EACC1" Margin="0,3,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border HorizontalAlignment="Right" VerticalAlignment="Center" Width="278"
+                        MaxHeight="270" Margin="0,16,0,0" Padding="15"
+                        Background="#F0121D2D" BorderBrush="#5260718A" BorderThickness="1"
+                        CornerRadius="17" Panel.ZIndex="4">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLanScanActive}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,9">
+                            <Button DockPanel.Dock="Right" Content="Arrêter" Style="{StaticResource LandingButton}"
+                                    Padding="9,5" FontSize="9" Click="ScanToggle_Click" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="7" Height="7" Fill="#54D6A3" Margin="0,0,8,0"
+                                         VerticalAlignment="Center" />
+                                <TextBlock Text="SCAN DU RÉSEAU LOCAL" FontSize="9" FontWeight="Bold"
+                                           Foreground="#E8ECF4" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock Text="Appareils RedChat détectés" FontSize="8" Foreground="#96A5BB"
+                                   Margin="0,0,0,7" />
+                        <ScrollViewer MaxHeight="142" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding DiscoveredPeers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#172438" CornerRadius="11" Padding="9,8" Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding PeerId}" FontSize="8" FontWeight="SemiBold"
+                                                               Foreground="#E0E6F0" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Endpoint}" FontSize="8" Foreground="#93A2B8"
+                                                               Margin="0,3,0,0" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="Connecter" Style="{StaticResource LandingButton}"
+                                                        Padding="9,7" FontSize="8" Margin="8,0,0,0"
+                                                        Click="ConnectPeer_Click" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <TextBlock Text="En attente d’annonces RedChat sur le réseau local…"
+                                   Foreground="#95A4BA" FontSize="8" Margin="1,7,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasDiscoveredPeers}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="Une annonce ne prouve pas l’identité ; celle-ci est vérifiée à la connexion."
+                                   Foreground="#74849D" FontSize="8" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding ConnectionNotice}" Foreground="#69DCAF" FontSize="8"
+                                   TextWrapping="Wrap" Margin="0,7,0,0" />
+                        <TextBlock Text="{Binding Error}" Foreground="#FF8296" FontSize="8"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource FeatureCard}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="✉" FontSize="18" Foreground="#FF7187" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Discussions privées" FontSize="10" FontWeight="Bold" />
+                        <TextBlock Text="Des échanges qui vous ressemblent" FontSize="8" Foreground="#92A1B8" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource FeatureCard}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="◉" FontSize="18" Foreground="#FF7187" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Appels en direct" FontSize="10" FontWeight="Bold" />
+                        <TextBlock Text="Restez proches, à chaque instant" FontSize="8" Foreground="#92A1B8" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource FeatureCard}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="✦" FontSize="18" Foreground="#FF7187" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Partage éphémère" FontSize="10" FontWeight="Bold" />
+                        <TextBlock Text="À vous de choisir ce qui reste" FontSize="8" Foreground="#92A1B8" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <TextBlock Grid.Column="3" Text="REDCHAT  ·  PRIVÉ PAR CONCEPTION"
+                       FontSize="8" FontWeight="Bold" Foreground="#62728B"
+                       VerticalAlignment="Center" Margin="9,0,0,0" />
+        </Grid>
+    </Grid>
+</UserControl>

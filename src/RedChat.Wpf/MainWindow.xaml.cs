@@ -72,6 +72,10 @@ public partial class MainWindow : Window, IDisposable
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _personalProfile = personalProfile ?? throw new ArgumentNullException(nameof(personalProfile));
+        WelcomeLanding.DataContext = _viewModel;
+        WelcomeLanding.EnterRequested += OnLandingEnterRequested;
+        WelcomeLanding.ScanToggleRequested += OnLandingScanToggleRequested;
+        WelcomeLanding.ConnectPeerRequested += OnLandingConnectPeerRequested;
         SelfStatusCard.DataContext = _personalProfile;
         _viewModel.UpdateSelfProfile(_personalProfile.CurrentProfile);
         _personalProfile.ProfileSaved += OnSelfProfileSaved;
@@ -163,6 +167,9 @@ public partial class MainWindow : Window, IDisposable
             await DisposeCallMediaEngineAsync();
             _favorites.Changed -= OnFavoritesChanged;
             _personalProfile.ProfileSaved -= OnSelfProfileSaved;
+            WelcomeLanding.EnterRequested -= OnLandingEnterRequested;
+            WelcomeLanding.ScanToggleRequested -= OnLandingScanToggleRequested;
+            WelcomeLanding.ConnectPeerRequested -= OnLandingConnectPeerRequested;
             Dispose();
             _allowClose = true;
             Close();
@@ -244,6 +251,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void ShowStatuses_Click(object sender, RoutedEventArgs e)
     {
+        WelcomeLanding.Visibility = Visibility.Collapsed;
         StatusCenterWindow window = new(_viewModel) { Owner = this };
         window.ShowDialog();
     }
@@ -986,6 +994,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void ShowChats_Click(object sender, RoutedEventArgs e)
     {
+        WelcomeLanding.Visibility = Visibility.Collapsed;
         _friendsOnly = false;
         _favoritesOnly = false;
         ChatsTab.Background = (System.Windows.Media.Brush)FindResource("Accent");
@@ -1005,6 +1014,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void ShowFriends_Click(object sender, RoutedEventArgs e)
     {
+        WelcomeLanding.Visibility = Visibility.Collapsed;
         _friendsOnly = true;
         _favoritesOnly = false;
         FriendsTab.Background = (System.Windows.Media.Brush)FindResource("Accent");
@@ -1159,6 +1169,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void ShowFavorites_Click(object sender, RoutedEventArgs e)
     {
+        WelcomeLanding.Visibility = Visibility.Collapsed;
         _friendsOnly = false;
         _favoritesOnly = true;
         ChatsTab.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(28, 43, 64));
@@ -1228,8 +1239,46 @@ public partial class MainWindow : Window, IDisposable
 
     private void ShowMyProfile_Click(object sender, RoutedEventArgs e)
     {
+        WelcomeLanding.Visibility = Visibility.Collapsed;
         MyProfileWindow dialog = new(_personalProfile) { Owner = this };
         _ = dialog.ShowDialog();
+    }
+
+    private void ShowLanding_Click(object sender, RoutedEventArgs e) =>
+        WelcomeLanding.Visibility = Visibility.Visible;
+
+    private void OnLandingEnterRequested(object? sender, EventArgs e)
+    {
+        WelcomeLanding.Visibility = Visibility.Collapsed;
+        ShowChats_Click(this, new RoutedEventArgs());
+    }
+
+    private void OnLandingScanToggleRequested(object? sender, EventArgs e)
+    {
+        if (_viewModel.IsLanScanActive)
+        {
+            _viewModel.StopLanScan();
+        }
+        else
+        {
+            _viewModel.StartLanScan();
+        }
+        WelcomeLanding.UpdateScanButtonLabel(_viewModel.IsLanScanActive);
+    }
+
+    private async void OnLandingConnectPeerRequested(DiscoveredPeerViewModel peer)
+    {
+        try
+        {
+            _ = await _viewModel.ConnectDiscoveredPeerAsync(peer.PeerId);
+            WelcomeLanding.Visibility = Visibility.Collapsed;
+            ShowChats_Click(this, new RoutedEventArgs());
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(exception.Message, "RedChat — connexion au pair",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)

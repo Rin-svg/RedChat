@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
         xmlns:local="clr-namespace:RedChat.Wpf"
+        xmlns:views="clr-namespace:RedChat.Wpf.Views"
         Title="RedChat" Width="1540" Height="960" MinWidth="1180" MinHeight="740"
         WindowStartupLocation="CenterScreen" Closing="OnClosing"
         Background="{StaticResource AppBackground}" UseLayoutRounding="True" SnapsToDevicePixels="True">
@@ -175,7 +176,7 @@
         <Border Grid.Row="1" Grid.Column="0" Background="#85070A10" BorderBrush="#263A55" BorderThickness="1,0,0,1" CornerRadius="0,0,0,9">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Margin="0,16,0,0">
-                    <Button Style="{StaticResource RailButton}" Content="⌂" ToolTip="Accueil — discussions" Click="ShowChats_Click" automation:AutomationProperties.AutomationId="HomeButton" />
+                    <Button Style="{StaticResource RailButton}" Content="⌂" ToolTip="Accueil RedChat" Click="ShowLanding_Click" automation:AutomationProperties.AutomationId="HomeButton" />
                     <Button Style="{StaticResource RailButton}" Content="☆" ToolTip="Afficher les favoris" Click="ShowFavorites_Click" automation:AutomationProperties.AutomationId="FavoritesButton" />
                     <Border Width="34" Height="2" Background="#263A55" Margin="0,10" />
                     <Border Background="#48243B" CornerRadius="15" Width="46" Height="46" Margin="0,2">
@@ -773,5 +774,8 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <views:HomeLandingPage x:Name="WelcomeLanding" Grid.Row="0" Grid.Column="0"
+                               Grid.RowSpan="2" Grid.ColumnSpan="4" Panel.ZIndex="20" />
     </Grid>
 </Window>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using RedChat.Core;
@@ -37,6 +38,7 @@ public sealed class LanNode : IAsyncDisposable
     private readonly LanNodeOptions _options;
     private readonly TimeProvider _clock;
     private readonly CancellationTokenSource _cts = new();
+    private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _discoveredConnections = new(StringComparer.Ordinal);
     private static readonly HashSet<string> ReservedStatusMediaNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
@@ -307,6 +309,46 @@ public sealed class LanNode : IAsyncDisposable
         return Transport.ConnectAsync(ep, expectedPeerId: null, ct);
     }
 
+    /// <summary>
+    /// Connecte à l’endpoint annoncé en exigeant que le handshake authentifie exactement le PeerId annoncé.
+    /// L’annonce n’est jamais considérée comme une identité authentifiée et seule une adresse IP locale est acceptée.
+    /// </summary>
+    public Task<string> ConnectDiscoveredAsync(PeerDiscoveredEventArgs discovered, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(discovered);
+        return ConnectDiscoveredAsync(discovered.PeerId, discovered.Endpoint, ct);
+    }
+
+    /// <summary>
+    /// Connecte à l’endpoint annoncé en exigeant que le handshake authentifie exactement le PeerId annoncé.
+    /// </summary>
+    public Task<string> ConnectDiscoveredAsync(string announcedPeerId, IPEndPoint endpoint, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        if (!InputValidator.IsValidPeerId(announcedPeerId) || announcedPeerId == PeerId)
+        {
+            throw new ArgumentException("PeerId annoncé invalide.", nameof(announcedPeerId));
+        }
+
+        if (endpoint.Port < ProtocolLimits.MinPort || endpoint.Port > IPEndPoint.MaxPort
+            || !InputValidator.IsLanAddress(endpoint.Address))
+        {
+            throw new ArgumentException("Annonce LAN invalide.", nameof(endpoint));
+        }
+
+        if (Transport.IsConnected(announcedPeerId))
+        {
+            return Task.FromResult(announcedPeerId);
+        }
+
+        Lazy<Task<string>> connection = _discoveredConnections.GetOrAdd(
+            announcedPeerId,
+            _ => new Lazy<Task<string>>(
+                () => ConnectDiscoveredCoreAsync(announcedPeerId, endpoint),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+        return connection.Value.WaitAsync(ct);
+    }
+
     /// <summary>Arrête tout. Peut être appelé plusieurs fois sans effet supplémentaire.</summary>
     public async ValueTask DisposeAsync()
     {
@@ -429,11 +471,23 @@ public sealed class LanNode : IAsyncDisposable
     {
         try
         {
-            _ = await Transport.ConnectAsync(e.Endpoint, e.PeerId, _cts.Token).ConfigureAwait(false);
+            _ = await ConnectDiscoveredAsync(e, _cts.Token).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is ProtocolViolationException or IOException or SocketException or TimeoutException or OperationCanceledException or ObjectDisposedException or InvalidOperationException)
         {
             // le pair n'est pas joignable ou n'est pas celui qu'il prétend être : on réessaiera à sa prochaine annonce.
+        }
+    }
+
+    private async Task<string> ConnectDiscoveredCoreAsync(string peerId, IPEndPoint endpoint)
+    {
+        try
+        {
+            return await Transport.ConnectAsync(endpoint, peerId, _cts.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            _discoveredConnections.TryRemove(peerId, out _);
         }
     }
 }

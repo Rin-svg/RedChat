@@ -365,6 +365,37 @@ public class TransportTests
     }
 
     [Fact]
+    public async Task ConnectDiscovered_AuthenticatesTheAdvertisedPeerId()
+    {
+        using NetHelpers.Rig rig = new();
+        LanNode a = rig.Add();
+        LanNode b = rig.Add();
+        PeerDiscoveredEventArgs announcement = new(b.PeerId, NetHelpers.Rig.EndpointOf(b));
+
+        string authenticatedPeerId = await a.ConnectDiscoveredAsync(announcement);
+
+        Assert.Equal(b.PeerId, authenticatedPeerId);
+        Assert.True(a.Transport.IsConnected(b.PeerId));
+        Assert.True(a.Contacts.Find(b.PeerId) is not null);
+    }
+
+    [Fact]
+    public async Task ConnectDiscovered_RejectsWrongPeerIdAndNonLanEndpoint()
+    {
+        using NetHelpers.Rig rig = new();
+        LanNode a = rig.Add();
+        LanNode b = rig.Add();
+        string wrongPeerId = new('f', 64);
+
+        await Assert.ThrowsAnyAsync<ProtocolViolationException>(() =>
+            a.ConnectDiscoveredAsync(wrongPeerId, NetHelpers.Rig.EndpointOf(b)));
+        Assert.False(a.Transport.IsConnected(b.PeerId));
+        Action connectToPublicAddress = () =>
+            _ = a.ConnectDiscoveredAsync(b.PeerId, new IPEndPoint(IPAddress.Parse("8.8.8.8"), 50123));
+        Assert.Throws<ArgumentException>(connectToPublicAddress);
+    }
+
+    [Fact]
     public void MessagesSentBeforeConnection_AreDeliveredInOrderOnConnect()
     {
         using NetHelpers.Rig rig = new();
