@@ -410,6 +410,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Crée un ViewModel de groupe relié au service courant.</summary>
     public CreateGroupViewModel CreateGroupViewModel() => new(_node.Chat, _node.Contacts);
 
+    /// <summary>Crée le ViewModel de transfert d'un message vers l'une des conversations ouvertes.</summary>
+    /// <param name="message">Message à transférer.</param>
+    public ForwardMessageViewModel CreateForwardViewModel(ChatMessage message) => new(_node.Chat, message, Conversations);
+
     /// <summary>Supprime localement une conversation et son favori éventuel.</summary>
     public void RemoveConversation(string conversationId)
     {
