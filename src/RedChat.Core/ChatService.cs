@@ -146,6 +146,51 @@ public sealed partial class ChatService
         return msg;
     }
 
+    /// <summary>
+    /// Transfère le texte d'un message existant vers une autre conversation déjà connue.
+    /// Le destinataire reçoit un message texte ordinaire envoyé par nous : aucun champ de protocole supplémentaire.
+    /// </summary>
+    /// <param name="sourceConversationId">Conversation qui contient le message d'origine.</param>
+    /// <param name="messageId">Identifiant (GUID) du message à transférer.</param>
+    /// <param name="targetConversationId">Conversation de destination, qui doit déjà exister.</param>
+    /// <returns>Le nouveau message envoyé dans la conversation de destination.</returns>
+    public ChatMessage ForwardMessage(string sourceConversationId, string messageId, string targetConversationId)
+    {
+        ArgumentNullException.ThrowIfNull(sourceConversationId);
+        ArgumentNullException.ThrowIfNull(targetConversationId);
+        if (!InputValidator.IsValidGuid(messageId))
+        {
+            throw new ArgumentException("Identifiant de message invalide.", nameof(messageId));
+        }
+
+        ChatMessage? source = null;
+        bool targetKnown;
+        lock (_lock)
+        {
+            if (_convs.TryGetValue(sourceConversationId, out Conv? sourceConv))
+            {
+                int i = IndexOf(sourceConv, messageId);
+                source = i >= 0 ? sourceConv.Messages[i] : null;
+            }
+
+            targetKnown = _convs.ContainsKey(targetConversationId);
+        }
+
+        // Le verrou est relâché avant SendText : SendText prend lui-même le verrou puis lève ses événements.
+        string? reason = MessageForwardPolicy.Validate(source, targetConversationId);
+        if (reason is not null || source is null)
+        {
+            throw new InvalidOperationException(reason ?? "Message introuvable.");
+        }
+
+        if (!targetKnown)
+        {
+            throw new InvalidOperationException("Conversation de destination inconnue.");
+        }
+
+        return SendText(targetConversationId, source.Text);
+    }
+
     /// <summary>Crée ou retourne une conversation privée sans envoyer de message artificiel.</summary>
     /// <param name="peerId">PeerId authentifié du contact.</param>
     /// <returns>La conversation privée existante ou nouvellement créée.</returns>
