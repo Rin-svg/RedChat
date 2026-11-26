@@ -327,8 +327,13 @@ internal static class AppLogger
                     File.Move(path, backup, overwrite: true);
                 }
 
-                string line = $"{DateTimeOffset.UtcNow:O} {exception.GetType().Name}: {exception.Message}{Environment.NewLine}{exception.StackTrace}{Environment.NewLine}";
-                File.AppendAllText(path, line);
+                Exception? current = exception;
+                while (current is not null)
+                {
+                    string line = $"{DateTimeOffset.UtcNow:O} {current.GetType().Name}: {current.Message}{Environment.NewLine}{current.StackTrace}{Environment.NewLine}";
+                    File.AppendAllText(path, line);
+                    current = current.InnerException;
+                }
             }
         }
         catch (IOException)

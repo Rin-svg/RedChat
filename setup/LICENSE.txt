@@ -1,0 +1,61 @@
+﻿CONTRAT DE LICENCE UTILISATEUR FINAL — RedChat
+
+Veuillez lire attentivement ce contrat avant d'installer ou d'utiliser RedChat.
+En cliquant sur « J'accepte » puis en installant le logiciel, vous acceptez ces conditions.
+Si vous ne les acceptez pas, n'installez pas RedChat.
+
+
+1. OBJET
+RedChat est un logiciel de messagerie pour Windows qui fonctionne en pair-à-pair sur un réseau local, sans serveur central.
+Il permet d'échanger des messages, des pièces jointes, des messages vocaux et, à titre expérimental, des appels audio et vidéo.
+
+2. LICENCE D'UTILISATION
+Une licence personnelle, non exclusive, non transférable et révocable vous est accordée pour installer et utiliser RedChat
+sur vos propres appareils, à des fins privées ou internes.
+
+3. RESTRICTIONS
+Vous vous engagez à ne pas :
+  a) vendre, louer ou redistribuer RedChat sans autorisation écrite de son auteur ;
+  b) supprimer ou modifier les mentions de propriété et de licence présentes dans le logiciel ;
+  c) utiliser RedChat pour porter atteinte à autrui, à un réseau ou à un appareil, ou pour une activité contraire à la loi.
+
+4. DONNÉES ET VIE PRIVÉE
+RedChat ne dispose d'aucun serveur central : vos messages circulent directement entre les appareils que vous connectez.
+Vos données (profil, contacts, historique, pièces jointes reçues) sont enregistrées sur votre appareil, dans votre
+dossier utilisateur Windows (%LOCALAPPDATA%\RedChat). Les données sensibles sont protégées par Windows (DPAPI) pour votre session.
+Il vous appartient de protéger l'accès à votre session Windows et de sauvegarder vos données si nécessaire.
+Un journal technique local (sans contenu de message ni clé) peut être écrit pour faciliter le dépannage.
+
+5. SÉCURITÉ ET LIMITES DU LOGICIEL
+Les échanges sont chiffrés entre les appareils. Toutefois :
+  a) RedChat n'a pas fait l'objet d'un audit de sécurité indépendant ;
+  b) un contact est enregistré lors de la première connexion sans vérification préalable : comparez le code de sécurité
+     avec votre interlocuteur par un autre moyen (en personne, par téléphone) pour confirmer son identité ;
+  c) les appels audio et vidéo sont expérimentaux et limités au réseau local ;
+  d) l'utilisation sur un réseau que vous ne contrôlez pas (Wi-Fi public, entreprise) est à vos risques.
+
+6. CONTENU ET RESPONSABILITÉ DE L'UTILISATEUR
+Vous êtes seul responsable des contenus que vous échangez et de l'usage que vous faites du logiciel,
+notamment au regard des lois applicables et du respect de la vie privée des autres personnes.
+
+7. ABSENCE DE GARANTIE
+RedChat est fourni « en l'état », sans garantie d'aucune sorte, expresse ou implicite, y compris de qualité marchande,
+d'adéquation à un usage particulier, de disponibilité ou d'absence d'erreur. L'auteur ne garantit pas que le logiciel
+fonctionnera sans interruption ni qu'aucune donnée ne sera perdue.
+
+8. LIMITATION DE RESPONSABILITÉ
+Dans les limites permises par la loi, l'auteur n'est pas responsable des dommages directs ou indirects (perte de données,
+interruption d'activité, atteinte à la confidentialité, etc.) résultant de l'installation ou de l'utilisation de RedChat.
+
+9. MARQUES
+RedChat n'est affilié à aucune société tierce. Les autres noms de produits ou de sociétés cités appartiennent à leurs
+propriétaires respectifs.
+
+10. DURÉE ET RÉSILIATION
+Cette licence reste valable tant que vous respectez ces conditions. Vous pouvez y mettre fin à tout moment en désinstallant
+RedChat. En cas de manquement, la licence prend fin automatiquement.
+
+11. DROIT APPLICABLE
+Ce contrat est régi par le droit de : [pays / juridiction à compléter].
+
+Copyright (c) 2026 [Nom de l'auteur ou de l'organisation à compléter]. Tous droits réservés.

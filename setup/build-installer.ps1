@@ -5,7 +5,7 @@
 .DESCRIPTION
     Étapes : (1) tests  (2) publication autonome win-x64 (le runtime .NET est inclus)  (3) compilation du script
     Inno Setup  (4) empreinte SHA-256 du fichier produit.
-    Résultat : installer\Output\RedChat-Setup-<version>.exe (+ .sha256).
+    Résultat : setup\Output\RedChat-Setup-<version>.exe (+ .sha256).
 
 .PARAMETER Version
     Numéro de version « 1.2.3 ». Par défaut : la valeur <Version> de src\RedChat.Wpf\RedChat.Wpf.csproj.
@@ -17,9 +17,9 @@
     Installe Inno Setup avec winget s'il est absent.
 
 .EXAMPLE
-    .\installer\build-installer.ps1
+    .\setup\build-installer.ps1
 .EXAMPLE
-    .\installer\build-installer.ps1 -Version 1.1.0 -InstallInno
+    .\setup\build-installer.ps1 -Version 1.1.0 -InstallInno
 #>
 [CmdletBinding()]
 param(
@@ -98,11 +98,26 @@ if (-not (Test-Path (Join-Path $publishDir 'RedChat.exe'))) { throw "RedChat.exe
 
 # --- 4. Inno Setup ---------------------------------------------------------------------------------------------------
 function Find-Iscc {
+    $registeredInstall = Get-ItemProperty `
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' `
+        -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.PSObject.Properties['DisplayName'] -and
+            $_.PSObject.Properties['InstallLocation'] -and
+            $_.DisplayName -like 'Inno Setup version 6*' -and
+            $_.InstallLocation
+        } |
+        Select-Object -First 1
     $candidates = @(
         (Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'),
         (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Inno Setup 6\ISCC.exe'),
         (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\Inno Setup 6\ISCC.exe')
     )
+    if ($registeredInstall) {
+        $candidates += Join-Path $registeredInstall.InstallLocation 'ISCC.exe'
+    }
     foreach ($candidate in $candidates) { if ($candidate -and (Test-Path $candidate)) { return $candidate } }
     $onPath = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     if ($onPath) { return $onPath.Source }
@@ -136,4 +151,4 @@ Step "Terminé"
 Write-Host "Installateur : $setup ($sizeMb Mo)"
 Write-Host "SHA-256      : $hash"
 Write-Host ""
-Write-Host "À faire avant de le diffuser : l'essayer sur un autre PC / une machine virtuelle (voir installer\README-INSTALLATEUR.md)." -ForegroundColor Yellow
+Write-Host "À faire avant de le diffuser : l'essayer sur un autre PC / une machine virtuelle (voir setup\README-INSTALLATEUR.md)." -ForegroundColor Yellow

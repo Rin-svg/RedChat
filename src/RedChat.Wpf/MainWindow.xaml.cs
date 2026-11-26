@@ -30,8 +30,8 @@ public partial class MainWindow : Window, IDisposable
     private readonly ICollectionView _conversationView;
     private readonly ICollectionView _contactView;
     private readonly RedChat.Core.FavoriteConversations _favorites;
-    private readonly Forms.NotifyIcon _trayIcon;
-    private readonly Forms.ContextMenuStrip _trayMenu;
+    private readonly Forms.NotifyIcon? _trayIcon;
+    private readonly Forms.ContextMenuStrip? _trayMenu;
     private bool _notificationsEnabled = true;
     private string? _pendingNotificationConversationId;
     private bool _friendsOnly;
@@ -130,6 +130,11 @@ public partial class MainWindow : Window, IDisposable
         _closing = true;
         try
         {
+            if (_viewModel is null)
+            {
+                return;
+            }
+
             // Appel en cours : prévenir le pair AVANT de couper le réseau (EndCall est sans effet s'il n'y a pas d'appel).
             // Le paquet « End » passe par une file d'écriture : on laisse un court délai pour qu'il parte.
             // Si malgré tout il se perd, le pair termine l'appel de lui-même à la perte de connexion (CallSignalingService).
@@ -160,16 +165,28 @@ public partial class MainWindow : Window, IDisposable
         }
         finally
         {
-            _viewModel.Contacts.CollectionChanged -= OnContactsCollectionChanged;
-            _viewModel.IncomingMessageReceived -= OnIncomingMessageReceived;
-            _viewModel.Calls.SessionChanged -= OnCallSessionChanged;
-            _viewModel.Calls.SignalReceived -= OnCallSignalReceived;
+            if (_viewModel is not null)
+            {
+                _viewModel.Contacts.CollectionChanged -= OnContactsCollectionChanged;
+                _viewModel.IncomingMessageReceived -= OnIncomingMessageReceived;
+                _viewModel.Calls.SessionChanged -= OnCallSessionChanged;
+                _viewModel.Calls.SignalReceived -= OnCallSignalReceived;
+            }
             await DisposeCallMediaEngineAsync();
-            _favorites.Changed -= OnFavoritesChanged;
-            _personalProfile.ProfileSaved -= OnSelfProfileSaved;
-            WelcomeLanding.EnterRequested -= OnLandingEnterRequested;
-            WelcomeLanding.ScanToggleRequested -= OnLandingScanToggleRequested;
-            WelcomeLanding.ConnectPeerRequested -= OnLandingConnectPeerRequested;
+            if (_favorites is not null)
+            {
+                _favorites.Changed -= OnFavoritesChanged;
+            }
+            if (_personalProfile is not null)
+            {
+                _personalProfile.ProfileSaved -= OnSelfProfileSaved;
+            }
+            if (WelcomeLanding is not null)
+            {
+                WelcomeLanding.EnterRequested -= OnLandingEnterRequested;
+                WelcomeLanding.ScanToggleRequested -= OnLandingScanToggleRequested;
+                WelcomeLanding.ConnectPeerRequested -= OnLandingConnectPeerRequested;
+            }
             Dispose();
             _allowClose = true;
             Close();
@@ -185,17 +202,20 @@ public partial class MainWindow : Window, IDisposable
         }
 
         _trayResourcesDisposed = true;
-        _trayIcon.BalloonTipClicked -= OnTrayBalloonTipClicked;
-        _trayIcon.DoubleClick -= OnTrayIconDoubleClick;
-        _trayIcon.Visible = false;
-        _trayIcon.Dispose();
-        _trayMenu.Dispose();
+        if (_trayIcon is not null)
+        {
+            _trayIcon.BalloonTipClicked -= OnTrayBalloonTipClicked;
+            _trayIcon.DoubleClick -= OnTrayIconDoubleClick;
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+        }
+        _trayMenu?.Dispose();
         GC.SuppressFinalize(this);
     }
 
     private void OnIncomingMessageReceived(object? sender, IncomingMessageNotificationEventArgs e)
     {
-        if (!_notificationsEnabled)
+        if (!_notificationsEnabled || _trayIcon is null)
         {
             return;
         }
