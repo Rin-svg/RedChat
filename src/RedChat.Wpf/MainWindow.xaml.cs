@@ -385,6 +385,27 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
+    private void ForwardMessage_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: RedChat.Core.ChatMessage message })
+        {
+            return;
+        }
+
+        ForwardMessageViewModel forward = _viewModel.CreateForwardViewModel(message);
+        if (forward.Targets.Count == 0)
+        {
+            MessageBox.Show("Aucune autre conversation n'est disponible. Ouvre ou crée d'abord une discussion.", "RedChat — transférer", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        ForwardMessageWindow dialog = new(forward) { Owner = this };
+        if (dialog.ShowDialog() == true && forward.ForwardedMessage is not null)
+        {
+            _conversationView.Refresh();
+        }
+    }
+
     private void CreateGroup_Click(object sender, RoutedEventArgs e)
     {
         CreateGroupViewModel vm = _viewModel.CreateGroupViewModel();

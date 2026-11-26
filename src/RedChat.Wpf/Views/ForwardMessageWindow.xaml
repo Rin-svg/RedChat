@@ -1,0 +1,60 @@
+<Window x:Class="RedChat.Wpf.Views.ForwardMessageWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Transférer le message" Width="440" Height="560" MinWidth="380" MinHeight="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        Background="{StaticResource AppBackground}" Foreground="{StaticResource PrimaryText}">
+  <Grid Margin="18" Background="{StaticResource AppBackground}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+      <TextBlock Text="TRANSFÉRER LE MESSAGE" Foreground="{StaticResource PrimaryText}" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" />
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="10,8">
+        <TextBlock Text="{Binding PreviewText, Mode=OneWay}" TextWrapping="Wrap" MaxHeight="72"
+                   Foreground="{StaticResource PrimaryText}" FontSize="12"
+                   AutomationProperties.AutomationId="ForwardPreviewText" />
+      </Border>
+    </StackPanel>
+    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+      <TextBlock Text="Rechercher une conversation" Foreground="{StaticResource PrimaryText}" FontSize="12" FontWeight="SemiBold" />
+      <TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" Margin="0,5,0,0"
+               Background="{StaticResource SurfaceRaised}" Foreground="{StaticResource PrimaryText}"
+               BorderBrush="{StaticResource Accent}" CaretBrush="{StaticResource Accent}"
+               AutomationProperties.AutomationId="ForwardSearchBox" />
+    </StackPanel>
+    <Border Grid.Row="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="4">
+      <ListBox ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget, Mode=TwoWay}"
+               Background="Transparent" BorderThickness="0" Foreground="{StaticResource PrimaryText}"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+               AutomationProperties.AutomationId="ForwardTargetList">
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <EventSetter Event="MouseDoubleClick" Handler="OnTargetDoubleClick" />
+            <Setter Property="Padding" Value="8,7" />
+          </Style>
+        </ListBox.ItemContainerStyle>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource PrimaryText}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding LastMessagePreview}" Foreground="{StaticResource PrimaryText}" Opacity="0.65" FontSize="11" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+    <StackPanel Grid.Row="3" Margin="0,12,0,0">
+      <TextBlock Text="{Binding Error}" Foreground="#FF7B91" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" TextWrapping="Wrap" />
+      <DockPanel>
+        <Button Content="Annuler" DockPanel.Dock="Left" IsCancel="True" />
+        <Button Content="Transférer" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}"
+                Command="{Binding ForwardCommand}" IsDefault="True"
+                AutomationProperties.AutomationId="ForwardConfirmButton" />
+      </DockPanel>
+    </StackPanel>
+  </Grid>
+</Window>
