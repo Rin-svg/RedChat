@@ -1,0 +1,25 @@
+﻿RedChat — Informations importantes avant l'installation
+
+RedChat est une messagerie privée pour Windows qui fonctionne directement entre vos appareils, sur votre réseau local,
+sans serveur central.
+
+
+CONFIGURATION REQUISE
+  - Windows 10 (version 1809 ou plus récente) ou Windows 11.
+  - Un réseau local commun entre les appareils qui veulent communiquer (même Wi-Fi ou même box).
+  - Pour les appels : un microphone et, pour la vidéo, une webcam.
+
+À SAVOIR AVANT D'INSTALLER
+  - Tous les appareils doivent utiliser la même version de RedChat. Après une mise à jour,
+    mettez à jour tous vos appareils pour qu'ils puissent se parler.
+  - Les appels audio et vidéo sont expérimentaux et ne fonctionnent que sur le réseau local.
+  - Au premier lancement, le pare-feu Windows demandera une autorisation : choisissez « Réseaux privés ».
+    RedChat utilise le port UDP 45821 (découverte des appareils) et des connexions TCP entrantes (conversations).
+  - Le réseau Wi-Fi « invités » isole souvent les appareils entre eux : utilisez votre réseau principal.
+
+VOS DONNÉES
+  - Aucun serveur central : vos messages circulent directement entre les appareils connectés.
+  - Vos données restent sur votre ordinateur, dans le dossier %LOCALAPPDATA%\RedChat, protégées par votre session Windows.
+  - Les échanges sont chiffrés, mais RedChat n'a pas été audité par un organisme indépendant.
+
+Cliquez sur « Suivant » pour continuer.

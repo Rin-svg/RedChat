@@ -92,4 +92,4 @@ La v16 ajoute l’enregistrement de messages vocaux WAV depuis le microphone Win
 RedChat v18 ajoute la signalisation des appels audio/vidéo privés via les connexions authentifiées et chiffrées. Les invitations, acceptations, refus et fins d’appel sont pris en charge. Le flux audio/vidéo temps réel n’est pas encore intégré dans cette version. Le protocole passe à la version 4 : mettez à jour tous les appareils ensemble. Voir `PATCH_NOTES_V18_CALL_SIGNALING.md`.
 
 ## Installateur Windows
-Pour produire `RedChat-Setup-<version>.exe` : `powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1 -InstallInno` — voir `installer\README-INSTALLATEUR.md`.
+Pour produire `RedChat-Setup-<version>.exe` : `powershell -ExecutionPolicy Bypass -File .\setup\build-installer.ps1 -InstallInno` — voir `setup\README-INSTALLATEUR.md`.

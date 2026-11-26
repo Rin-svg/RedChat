@@ -4,7 +4,7 @@
 artifacts/
 publish/
 TestResults/
-installer/Output/
+setup/Output/
 # IDE
 .idea/
 .vs/

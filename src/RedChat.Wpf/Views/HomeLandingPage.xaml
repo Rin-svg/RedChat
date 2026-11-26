@@ -25,13 +25,22 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="12">
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
+                        <Border.RenderTransformOrigin>0.5,0.5</Border.RenderTransformOrigin>
+                        <Border.RenderTransform>
+                            <ScaleTransform ScaleX="1" ScaleY="1" />
+                        </Border.RenderTransform>
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.86" />
+                                <Setter TargetName="ButtonSurface" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.025" ScaleY="1.025" />
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.72" />
@@ -48,10 +57,30 @@
             <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Padding" Value="17,15" />
             <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1" />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#F21D45" />
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.025" ScaleY="1.025" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="36,24,36,26" Background="#080D16">
+    <Grid Background="#080D16">
+      <Grid x:Name="LandingRoot" Margin="36,24,36,26" Background="#080D16" Opacity="0">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="LandingEntranceTransform" Y="18" />
+        </Grid.RenderTransform>
         <Grid.RowDefinitions>
             <RowDefinition Height="58" />
             <RowDefinition Height="*" />
@@ -80,7 +109,7 @@
                     Background="#9B111C2C" BorderBrush="#2C3B54" BorderThickness="1"
                     VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
-                    <Ellipse Width="7" Height="7" Fill="#54D6A3" Margin="0,0,8,0"
+                    <Ellipse x:Name="OnlineDot" Width="7" Height="7" Fill="#54D6A3" Margin="0,0,8,0"
                              VerticalAlignment="Center" />
                     <TextBlock Text="RÉSEAU LOCAL SÉCURISÉ" FontSize="9" FontWeight="SemiBold"
                                Foreground="#C3CEE0" VerticalAlignment="Center" />
@@ -140,7 +169,7 @@
             </StackPanel>
 
             <Grid Grid.Column="1" MinHeight="390" Margin="0,0,0,0">
-                <Ellipse Width="355" Height="355" HorizontalAlignment="Center" VerticalAlignment="Center"
+                <Ellipse x:Name="HeroGlow" Width="355" Height="355" HorizontalAlignment="Center" VerticalAlignment="Center"
                          IsHitTestVisible="False">
                     <Ellipse.Fill>
                         <RadialGradientBrush>
@@ -153,8 +182,26 @@
                 <Viewport3D x:Name="HeroScene" Width="440" Height="410"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             IsHitTestVisible="False" />
+                <Canvas x:Name="HeroLogoArtwork" Width="300" Height="180"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                    <Canvas.RenderTransform>
+                        <RotateTransform x:Name="HeroLogoTilt" Angle="-2" />
+                    </Canvas.RenderTransform>
+                    <Canvas.Effect>
+                        <DropShadowEffect Color="#F21D45" BlurRadius="28" ShadowDepth="0" Opacity="0.22" />
+                    </Canvas.Effect>
+                    <Path Data="M 45,100 C 60,55 104,28 151,29 C 198,30 231,55 247,87 C 211,77 179,82 143,97 C 105,113 72,116 45,100 Z"
+                          Fill="#F21D45" />
+                    <Path Data="M 24,103 C 61,116 101,107 140,91 C 184,74 228,78 276,97 C 247,126 196,144 139,143 C 86,143 43,127 24,103 Z"
+                          Fill="#FF7890" />
+                    <Path Data="M 43,120 C 81,137 130,139 178,129 C 151,145 102,151 68,138 C 56,134 48,128 43,120 Z"
+                          Fill="#A90E2C" />
+                    <Path Data="M 76,67 C 99,43 130,33 158,35 C 123,40 100,53 84,73 Z"
+                          Fill="#70FFFFFF" />
+                </Canvas>
 
-                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,35,8,0"
+                <Border x:Name="PrivateConnectionCard" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,35,8,0"
                         Background="#E8172234" BorderBrush="#4B50627C" BorderThickness="1"
                         CornerRadius="14" Padding="12,9" RenderTransformOrigin="0.5,0.5">
                     <Border.RenderTransform>
@@ -174,7 +221,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,12,0,0"
+                <Border x:Name="ChatPreviewCard" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,12,0,0"
                         Width="235" Background="#ED141F30" BorderBrush="#4B42516C" BorderThickness="1"
                         CornerRadius="17" Padding="14" RenderTransformOrigin="0.5,0.5">
                     <Border.RenderTransform>
@@ -204,7 +251,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,14,32"
+                <Border x:Name="MomentsCard" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,14,32"
                         Background="#E8172234" BorderBrush="#4B50627C" BorderThickness="1"
                         CornerRadius="15" Padding="13,10" RenderTransformOrigin="0.5,0.5">
                     <Border.RenderTransform>
@@ -335,6 +382,36 @@
             <TextBlock Grid.Column="3" Text="REDCHAT  ·  PRIVÉ PAR CONCEPTION"
                        FontSize="8" FontWeight="Bold" Foreground="#62728B"
                        VerticalAlignment="Center" Margin="9,0,0,0" />
+        </Grid>
+
+      </Grid>
+        <Grid x:Name="LoadingOverlay" Panel.ZIndex="100" Visibility="Collapsed"
+              Background="#F2080D16" Opacity="0">
+            <Border Width="340" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="#F0142032" BorderBrush="#3A465F" BorderThickness="1" CornerRadius="22">
+                <StackPanel HorizontalAlignment="Center">
+                    <Grid Width="58" Height="58" Margin="0,0,0,20">
+                        <Ellipse Stroke="#33445F" StrokeThickness="4" />
+                        <Ellipse Stroke="#FF536F" StrokeThickness="4"
+                                 StrokeDashArray="1.5,2.4" StrokeDashCap="Round">
+                            <Ellipse.RenderTransform>
+                                <RotateTransform x:Name="LoadingSpinnerRotation" CenterX="29" CenterY="29" />
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                        <TextBlock Text="R" FontSize="22" FontWeight="Black" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Text="Ouverture de vos discussions"
+                               FontSize="17" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <TextBlock Text="Préparation de votre espace privé…"
+                               FontSize="11" Foreground="#A5B2C7" Margin="0,8,0,0"
+                               HorizontalAlignment="Center" />
+                    <Border Height="3" Width="220" Background="#26364D" CornerRadius="2" Margin="0,22,0,0">
+                        <Border x:Name="LoadingProgress" Width="44" Height="3" HorizontalAlignment="Left"
+                                Background="{StaticResource LandingAccent}" CornerRadius="2" />
+                    </Border>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </UserControl>

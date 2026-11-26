@@ -1,7 +1,7 @@
 ﻿; =====================================================================================================================
 ; RedChat — script Inno Setup 6.3 ou plus récent  (https://jrsoftware.org/isinfo.php)
 ;
-; Ne se lance pas à la main : utilisez  installer\build-installer.ps1  (il publie l'application PUIS compile ce script
+; Ne se lance pas à la main : utilisez  setup\build-installer.ps1  (il publie l'application PUIS compile ce script
 ; avec les bons paramètres /DMyAppVersion=… et /DPublishDir=…).
 ;
 ; CHOIX DE CONCEPTION (le « pourquoi ») :
@@ -58,9 +58,11 @@ RestartApplications=no
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-SetupIconFile=..\src\RedChat.Wpf\Assets\redchat.ico
+SetupIconFile=RedChat-Setup.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-InfoBeforeFile=info-avant-installation.txt
+InfoBeforeFile=INFO_AVANT_INSTALLATION.txt
+InfoAfterFile=INFO_APRES_INSTALLATION.txt
+LicenseFile=LICENSE.txt
 OutputDir=Output
 OutputBaseFilename=RedChat-Setup-{#MyAppVersion}
 ; Journal d'installation dans %TEMP% (Setup Log …txt) : utile pour comprendre un échec chez un utilisateur.

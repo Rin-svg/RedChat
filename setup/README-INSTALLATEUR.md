@@ -9,12 +9,12 @@ Prérequis : SDK .NET 10 (déjà installé) et **Inno Setup 6.3 ou plus récent*
 
 ```powershell
 # depuis la racine du projet (là où se trouve RedChat.sln)
-powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1 -InstallInno
+powershell -ExecutionPolicy Bypass -File .\setup\build-installer.ps1 -InstallInno
 ```
 
 - `-InstallInno` installe Inno Setup avec winget s'il manque (à la main : <https://jrsoftware.org/isdl.php>). Inutile ensuite.
-- Le script : lance les tests, publie l'application (`artifacts\publish\win-x64`), compile `installer\RedChat.iss`, calcule le SHA-256.
-- Résultat : `installer\Output\RedChat-Setup-1.0.0.exe` et `RedChat-Setup-1.0.0.exe.sha256`.
+- Le script : lance les tests, publie l'application (`artifacts\publish\win-x64`), compile `setup\RedChat.iss`, calcule le SHA-256.
+- Résultat : `setup\Output\RedChat-Setup-1.0.0.exe` et `RedChat-Setup-1.0.0.exe.sha256`.
 - Autres options : `-Version 1.1.0` (sinon lue dans `<Version>` de `src\RedChat.Wpf\RedChat.Wpf.csproj`), `-SkipTests`.
 - Dans Rider : *View > Tool Windows > Terminal*. Si `dotnet` n'est pas reconnu, le script cherche tout seul dans `%USERPROFILE%\.dotnet`.
 
@@ -61,6 +61,9 @@ lancement, Windows affiche « Windows a protégé votre ordinateur » : clique s
 
 - `build-installer.ps1` — publication + compilation + empreinte.
 - `RedChat.iss` — script Inno Setup (texte en français, UTF-8 avec BOM : ne pas enregistrer sans BOM).
-- `info-avant-installation.txt` — page d'information de l'assistant.
+- `INFO_AVANT_INSTALLATION.txt` — informations affichées avant l'installation.
+- `INFO_APRES_INSTALLATION.txt` — conseils affichés à la fin de l'installation.
+- `LICENSE.txt` — contrat de licence affiché par l'assistant ; les champs entre crochets doivent être complétés avant diffusion.
+- `RedChat-Setup.ico` — icône de l'installateur.
 - `tools/make-icon.py` — régénère `src\RedChat.Wpf\Assets\redchat.ico` depuis l'emblème de `MainWindow.xaml` (`pip install pillow`).
 - `Output\` et `..\artifacts\` — générés, à ne pas versionner.

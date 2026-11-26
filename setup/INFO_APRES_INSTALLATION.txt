@@ -1,0 +1,28 @@
+﻿RedChat est installé — premiers pas
+
+1. LANCER RedChat
+   Ouvrez RedChat depuis le menu Démarrer (ou le raccourci du Bureau si vous l'avez créé).
+   Si Windows demande l'autorisation du pare-feu, cochez « Réseaux privés » puis validez.
+
+2. PERSONNALISER VOTRE PROFIL
+   Ouvrez « Mon profil » pour choisir votre nom public, votre statut et votre photo (PNG ou JPEG, 512 Kio maximum).
+   Ces informations sont partagées avec vos contacts lorsqu'une connexion sécurisée est établie.
+
+3. CONNECTER UN AUTRE APPAREIL
+   - Installez la même version de RedChat sur l'autre appareil, connecté au même réseau local.
+   - Attendez quelques secondes : l'appareil apparaît dans le panneau « Connexion directe / pairs ».
+     Cliquez sur « Utiliser », puis sur « Se connecter à l'adresse ».
+   - Si rien n'apparaît, saisissez l'adresse de l'autre appareil au format  adresse-IP:port  (adresse IP de votre réseau local).
+
+4. VÉRIFIER VOTRE CONTACT
+   La première connexion avec un contact n'est pas vérifiée. Ouvrez « Détails du contact » et comparez le code de
+   sécurité avec votre interlocuteur par un autre moyen (en personne, par téléphone). S'il est identique, validez la vérification.
+
+5. EN CAS DE PROBLÈME
+   - Les deux appareils doivent être sur le même réseau, avec la même version de RedChat.
+   - Vérifiez que le pare-feu autorise RedChat sur les réseaux privés.
+   - Le journal technique se trouve dans %LOCALAPPDATA%\RedChat\Logs\redchat.log (sans contenu de message).
+
+DÉSINSTALLATION
+   La désinstallation supprime le programme. Vos données personnelles (profil, conversations) restent dans
+   %LOCALAPPDATA%\RedChat : supprimez ce dossier si vous souhaitez les effacer définitivement.
