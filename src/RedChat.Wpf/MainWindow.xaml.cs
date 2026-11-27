@@ -1350,6 +1350,12 @@ public partial class MainWindow : Window, IDisposable
         Process.Start(startInfo);
     }
 
+    private void MetaAi_Click(object sender, RoutedEventArgs e)
+    {
+        MetaAiWindow window = new() { Owner = this };
+        window.ShowDialog();
+    }
+
     private void OnCallSessionChanged(object? sender, RedChat.Infrastructure.CallSessionChangedEventArgs e)
     {
         if (e.Session is { State: RedChat.Infrastructure.CallSessionState.Accepted } accepted)

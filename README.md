@@ -91,5 +91,11 @@ La v16 ajoute l’enregistrement de messages vocaux WAV depuis le microphone Win
 
 RedChat v18 ajoute la signalisation des appels audio/vidéo privés via les connexions authentifiées et chiffrées. Les invitations, acceptations, refus et fins d’appel sont pris en charge. Le flux audio/vidéo temps réel n’est pas encore intégré dans cette version. Le protocole passe à la version 4 : mettez à jour tous les appareils ensemble. Voir `PATCH_NOTES_V18_CALL_SIGNALING.md`.
 
+## Assistant IA local gratuit
+
+L’assistant utilise Llama 3.2 1B (`llama3.2:1b`) via [Ollama pour Windows](https://ollama.com/download/windows), sans clé API ni frais d’utilisation. Après l’installation d’Ollama, exécutez `ollama run llama3.2:1b` dans PowerShell pour télécharger et démarrer le modèle. Ouvrez ensuite « Assistant IA local » dans le rail de navigation. Ollama doit être actif sur `127.0.0.1:11434` pendant l’utilisation.
+
+Les messages sont envoyés uniquement au serveur Ollama local de cet appareil, et non à Meta ou au réseau P2P RedChat. Le modèle utilise les ressources de l’ordinateur. L’historique IA reste en mémoire et disparaît à la fermeture de la fenêtre. Il s’agit du modèle Llama de Meta exécuté localement, pas du service Meta AI en ligne.
+
 ## Installateur Windows
 Pour produire `RedChat-Setup-<version>.exe` : `powershell -ExecutionPolicy Bypass -File .\setup\build-installer.ps1 -InstallInno` — voir `setup\README-INSTALLATEUR.md`.
